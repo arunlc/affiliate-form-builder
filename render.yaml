@@ -103,6 +103,7 @@ djangorestframework==3.14.0
 django-cors-headers==4.3.1
 django-environ==0.11.2
 psycopg2-binary==2.9.9
+dj-database-url==2.1.0
 gunicorn==21.2.0
 whitenoise==6.6.0
 celery==5.3.4
@@ -117,21 +118,27 @@ python-decouple==3.8
 ---
 
 # .env.example
-# Database
-DATABASE_URL=postgresql://user:password@localhost:5432/affiliate_forms
+# Database - PostgreSQL (Local Development)
+# Install PostgreSQL locally and create database: 
+# createdb affiliate_forms
+DATABASE_URL=postgresql://postgres:password@localhost:5432/affiliate_forms
+
+# Alternative local PostgreSQL URLs:
+# DATABASE_URL=postgresql://username:password@localhost:5432/affiliate_forms
+# DATABASE_URL=postgresql://postgres@localhost:5432/affiliate_forms  # No password
 
 # Django
-SECRET_KEY=your-secret-key-here
+SECRET_KEY=your-secret-key-here-minimum-50-characters-long-random-string
 DEBUG=True
 ALLOWED_HOSTS=localhost,127.0.0.1
 
 # CORS
 CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 
-# Redis
+# Redis (Optional - for caching/sessions)
 REDIS_URL=redis://localhost:6379/0
 
-# Email (Optional)
+# Email Configuration (Optional)
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USE_TLS=True
@@ -140,6 +147,13 @@ EMAIL_HOST_PASSWORD=your-app-password
 
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
+
+# Production Settings (Set these on Render)
+# SECRET_KEY=production-secret-key-from-render
+# DEBUG=False
+# ALLOWED_HOSTS=yourapp.onrender.com
+# DATABASE_URL=postgresql://... (auto-provided by Render)
+# CORS_ALLOWED_ORIGINS=https://yourapp.onrender.com
 
 ---
 
