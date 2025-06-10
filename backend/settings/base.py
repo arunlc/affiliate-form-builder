@@ -120,19 +120,19 @@ AUTH_USER_MODEL = 'users.User'
 ---
 
 # backend/settings/development.py
+import dj_database_url
 from .base import *
 
 DEBUG = True
-SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-in-production')
+SECRET_KEY = config('SECRET_KEY', default='dev-secret-key-change-in-production-at-least-50-chars-long')
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 
-# Database
+# Database - PostgreSQL for development
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.parse(
+        config('DATABASE_URL', default='postgresql://postgres:password@localhost:5432/affiliate_forms')
+    )
 }
 
 # CORS
@@ -143,8 +143,20 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Email (Development)
+# Email (Development - Console backend)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Cache (Optional - Redis for development)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': config('REDIS_URL', default='redis://127.0.0.1:6379/1'),
+    }
+} if config('REDIS_URL', default=None) else {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+    }
+}
 
 ---
 
