@@ -50,6 +50,18 @@ if ! command -v node &> /dev/null; then
     exit 1
 fi
 
+# Check if PostgreSQL is installed
+if ! command -v psql &> /dev/null; then
+    echo "⚠️  PostgreSQL is not installed. Please install PostgreSQL first."
+    echo "📖 Installation guides:"
+    echo "   macOS: brew install postgresql"
+    echo "   Ubuntu: sudo apt-get install postgresql postgresql-contrib"
+    echo "   Windows: Download from https://www.postgresql.org/download/"
+    exit 1
+fi
+
+echo "✅ All prerequisites found!"
+
 # Create virtual environment
 echo "🐍 Creating Python virtual environment..."
 python3 -m venv venv
@@ -64,19 +76,93 @@ pip install -r requirements.txt
 if [ ! -f ".env" ]; then
     echo "📝 Creating .env file..."
     cp .env.example .env
-    echo "⚠️ Please edit .env file with your settings before continuing."
+    echo ""
+    echo "🔧 Setting up PostgreSQL database..."
+    echo "Please enter your PostgreSQL connection details:"
+    
+    read -p "PostgreSQL username (default: postgres): " PG_USER
+    PG_USER=${PG_USER:-postgres}
+    
+    read -s -p "PostgreSQL password (press enter if no password): " PG_PASSWORD
+    echo ""
+    
+    read -p "Database name (default: affiliate_forms): " DB_NAME
+    DB_NAME=${DB_NAME:-affiliate_forms}
+    
+    read -p "Host (default: localhost): " PG_HOST
+    PG_HOST=${PG_HOST:-localhost}
+    
+    read -p "Port (default: 5432): " PG_PORT
+    PG_PORT=${PG_PORT:-5432}
+    
+    # Create database
+    echo "🗄️ Creating PostgreSQL database..."
+    if [ -z "$PG_PASSWORD" ]; then
+        createdb -U $PG_USER -h $PG_HOST -p $PG_PORT $DB_NAME 2>/dev/null || echo "Database might already exist"
+        DATABASE_URL="postgresql://$PG_USER@$PG_HOST:$PG_PORT/$DB_NAME"
+    else
+        PGPASSWORD=$PG_PASSWORD createdb -U $PG_USER -h $PG_HOST -p $PG_PORT $DB_NAME 2>/dev/null || echo "Database might already exist"
+        DATABASE_URL="postgresql://$PG_USER:$PG_PASSWORD@$PG_HOST:$PG_PORT/$DB_NAME"
+    fi
+    
+    # Update .env file with database URL
+    sed -i.bak "s|DATABASE_URL=.*|DATABASE_URL=$DATABASE_URL|g" .env
+    rm .env.bak 2>/dev/null || true
+    
+    echo "✅ Database configuration updated in .env"
+    echo "⚠️ Please review and edit .env file with any additional settings."
+else
+    echo "📝 .env file already exists, skipping..."
+fi
+
+# Test database connection
+echo "🔍 Testing database connection..."
+python -c "
+import dj_database_url
+import psycopg2
+from decouple import config
+
+try:
+    db_config = dj_database_url.parse(config('DATABASE_URL'))
+    conn = psycopg2.connect(
+        host=db_config['HOST'],
+        port=db_config['PORT'],
+        user=db_config['USER'],
+        password=db_config['PASSWORD'],
+        database=db_config['NAME']
+    )
+    conn.close()
+    print('✅ Database connection successful!')
+except Exception as e:
+    print(f'❌ Database connection failed: {e}')
+    print('Please check your database settings in .env file')
+    exit(1)
+"
+
+if [ $? -ne 0 ]; then
+    echo "❌ Database connection failed. Please check your PostgreSQL setup."
+    exit 1
 fi
 
 # Setup database
-echo "🗄️ Setting up database..."
+echo "🗄️ Setting up database schema..."
 python manage.py makemigrations
 python manage.py migrate
 
 # Create superuser (optional)
+echo ""
 echo "👤 Create a superuser account? (y/n)"
 read -r response
 if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     python manage.py createsuperuser
+fi
+
+# Load sample data
+echo ""
+echo "🌱 Load sample data for testing? (y/n)"
+read -r response
+if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    python scripts/seed_data.py
 fi
 
 # Setup frontend
@@ -85,12 +171,23 @@ cd frontend
 npm install
 cd ..
 
-echo "✅ Local setup completed!"
+echo ""
+echo "✅ Local setup completed successfully!"
 echo ""
 echo "🚀 To start development:"
-echo "1. Backend: python manage.py runserver"
+echo "1. Backend: source venv/bin/activate && python manage.py runserver"
 echo "2. Frontend: cd frontend && npm run dev"
 echo "3. Visit: http://localhost:3000"
+echo ""
+echo "🔗 Useful URLs:"
+echo "- Frontend: http://localhost:3000"
+echo "- Backend API: http://localhost:8000/api/"
+echo "- Django Admin: http://localhost:8000/admin/"
+echo ""
+echo "🔑 Default login credentials (if sample data loaded):"
+echo "- Admin: admin / admin123"
+echo "- Affiliate: affiliate1 / affiliate123"
+echo "- Operations: operations / ops123"
 
 ---
 
