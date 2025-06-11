@@ -20,6 +20,13 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow embedding in iframes
 
+# Static files for production - Override base settings
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# WhiteNoise configuration for production
+WHITENOISE_USE_FINDERS = False  # Use collected static files only
+WHITENOISE_AUTOREFRESH = False
+
 # Logging
 LOGGING = {
     'version': 1,
