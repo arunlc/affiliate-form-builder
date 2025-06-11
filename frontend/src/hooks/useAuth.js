@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react'
+import React, { useState, useEffect, createContext, useContext } from 'react'
 import { authAPI } from '../services/api'
 
 const AuthContext = createContext()
@@ -67,9 +67,9 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated: !!user,
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+  return React.createElement(
+    AuthContext.Provider,
+    { value: value },
+    children
   )
 }
