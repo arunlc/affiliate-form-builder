@@ -113,19 +113,18 @@
       </div>
     </div>
     
-    <!-- Try to load React bundle if it exists -->
+    <!-- Try to load React bundle if it exists - NO Django static template tags -->
     <script>
       const loadReactApp = async () => {
         try {
-          // Try to load built React assets directly
-          const cssPath = '{% static "assets/index.css" %}';
-          const jsPath = '{% static "assets/index.js" %}';
+          // Use hardcoded paths to avoid Django static file errors
+          const cssPath = '/static/assets/index.css';
+          const jsPath = '/static/assets/index.js';
           
-          // Test if assets exist
-          const cssResponse = await fetch(cssPath);
-          const jsResponse = await fetch(jsPath);
+          // Test if assets exist with a simple fetch
+          const cssResponse = await fetch(cssPath, { method: 'HEAD' });
           
-          if (cssResponse.ok && jsResponse.ok) {
+          if (cssResponse.ok) {
             // Load CSS
             const cssLink = document.createElement('link');
             cssLink.rel = 'stylesheet';
@@ -138,17 +137,17 @@
             jsScript.src = jsPath;
             document.head.appendChild(jsScript);
             
-            console.log('React app loaded successfully');
+            console.log('✅ React app loaded successfully');
           } else {
-            console.log('React assets not found, using fallback');
+            console.log('ℹ️ React assets not found, using fallback (this is normal during initial setup)');
           }
         } catch (e) {
-          console.log('React bundle not found, using fallback HTML');
+          console.log('ℹ️ React bundle not available, using fallback interface');
         }
       };
       
-      // Load React app
-      loadReactApp();
+      // Load React app after page loads
+      window.addEventListener('DOMContentLoaded', loadReactApp);
     </script>
   </body>
 </html>
