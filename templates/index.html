@@ -3,27 +3,80 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Affiliate Form Builder</title>
-    
-    <!-- Load CSS from the built React app -->
-    {% for css_file in css_files %}
-    <link rel="stylesheet" href="{% static css_file %}">
-    {% endfor %}
-    
-    <!-- Fallback: Try to load the main CSS file -->
-    <link rel="stylesheet" href="{% static 'assets/index.css' %}" onerror="this.remove();">
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div class="text-center">
+          <h1 class="text-4xl font-bold text-gray-900 mb-4">
+            Affiliate Form Builder SaaS
+          </h1>
+          <p class="text-gray-600 mb-8">
+            Platform Ready for Deployment! 🚀
+          </p>
+          <div class="space-x-4">
+            <a href="/admin" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-block transition-colors">
+              Admin Panel
+            </a>
+            <a href="/api" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-block transition-colors">
+              API Documentation
+            </a>
+          </div>
+          <div class="mt-8 text-sm text-gray-500">
+            <p class="mb-2">Test Accounts Available:</p>
+            <div class="space-y-1">
+              <p>🔑 Affiliate: <code class="bg-gray-200 px-2 py-1 rounded">affiliate1 / affiliate123</code></p>
+              <p>🔑 Operations: <code class="bg-gray-200 px-2 py-1 rounded">operations / ops123</code></p>
+            </div>
+          </div>
+          <div class="mt-6">
+            <p class="text-xs text-gray-400">
+              Built with Django + React | Ready for form building & affiliate tracking
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
     
-    <!-- Load JS from the built React app -->
-    {% for js_file in js_files %}
-    <script type="module" src="{% static js_file %}"></script>
-    {% endfor %}
-    
-    <!-- Fallback: Try to load the main JS file -->
-    <script type="module" src="{% static 'assets/index.js' %}" onerror="this.remove();"></script>
+    <!-- Try to load React bundle if it exists -->
+    <script>
+      // Check if React files exist and load them dynamically
+      const loadReactApp = async () => {
+        try {
+          // Try to fetch and load the built React app
+          const response = await fetch('{% static "index.html" %}');
+          if (response.ok) {
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+            
+            // Load CSS files
+            doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
+              if (!document.querySelector(`link[href="${link.href}"]`)) {
+                document.head.appendChild(link.cloneNode(true));
+              }
+            });
+            
+            // Load JS files
+            doc.querySelectorAll('script[src]').forEach(script => {
+              if (!document.querySelector(`script[src="${script.src}"]`)) {
+                const newScript = document.createElement('script');
+                newScript.src = script.src;
+                newScript.type = script.type || 'module';
+                document.head.appendChild(newScript);
+              }
+            });
+          }
+        } catch (e) {
+          console.log('React bundle not found, using fallback HTML');
+        }
+      };
+      
+      // Try to load React app
+      loadReactApp();
+    </script>
   </body>
 </html>
