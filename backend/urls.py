@@ -1,10 +1,12 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
+from django.views.static import serve
 
 urlpatterns = [
+    # API routes (highest priority)
     path('admin/', admin.site.urls),
     path('api/auth/', include('apps.users.urls')),
     path('api/forms/', include('apps.forms.urls')),
@@ -12,21 +14,31 @@ urlpatterns = [
     path('api/affiliates/', include('apps.affiliates.urls')),
     path('api/core/', include('apps.core.urls')),
     path('embed/', include('apps.forms.urls')),  # For embedded forms
-    
-    # Serve React frontend for all other routes
-    path('', TemplateView.as_view(template_name='index.html'), name='home'),
 ]
 
-# Serve media files in development
+# Static file serving (IMPORTANT: Before catch-all routes)
 if settings.DEBUG:
+    # Development static/media files
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-# Serve static files in production (important for Render deployment)
-if not settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+else:
+    # Production static file serving - EXPLICIT ROUTE
+    urlpatterns += [
+        re_path(r'^static/(?P<path>.*)$', serve, {
+            'document_root': settings.STATIC_ROOT,
+        }),
+        re_path(r'^media/(?P<path>.*)$', serve, {
+            'document_root': settings.MEDIA_ROOT,
+        }),
+    ]
 
-# Catch-all pattern for React router (SPA)
-# This should be last in the list
+# React app routes (MUST be after static file routes)
 urlpatterns += [
-    path('<path:path>', TemplateView.as_view(template_name='index.html'), name='react_routes'),
+    # Home page
+    path('', TemplateView.as_view(template_name='index.html'), name='home'),
+    
+    # Catch-all for React router (LAST - catches everything else)
+    re_path(r'^(?!static|media|api|admin|embed).*$', 
+            TemplateView.as_view(template_name='index.html'), 
+            name='react_routes'),
 ]
