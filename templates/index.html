@@ -76,6 +76,15 @@
         color: #9ca3af;
         font-size: 0.8rem;
       }
+      .debug-info {
+        margin-top: 2rem;
+        padding: 1rem;
+        background-color: #fef3c7;
+        border-radius: 0.5rem;
+        text-align: left;
+        font-size: 0.85rem;
+        color: #92400e;
+      }
     </style>
   </head>
   <body>
@@ -93,8 +102,8 @@
             <a href="/admin" class="fallback-btn fallback-btn-primary">
               Admin Panel
             </a>
-            <a href="/api" class="fallback-btn fallback-btn-secondary">
-              API Documentation
+            <a href="/api/core/dashboard/" class="fallback-btn fallback-btn-secondary">
+              API Test
             </a>
           </div>
           <div class="fallback-accounts">
@@ -109,40 +118,97 @@
           <div class="fallback-footer">
             Built with Django + React | Ready for form building & affiliate tracking
           </div>
+          
+          <!-- Debug Information -->
+          <div class="debug-info" id="debug-info">
+            <strong>Debug Info:</strong><br>
+            React Loading Status: <span id="react-status">Checking...</span><br>
+            Asset Paths: <span id="asset-paths">Loading...</span>
+          </div>
         </div>
       </div>
     </div>
     
-    <!-- Try to load React bundle if it exists - NO Django static template tags -->
+    <!-- Enhanced debugging and React loading -->
     <script>
+      const debugInfo = document.getElementById('debug-info');
+      const reactStatus = document.getElementById('react-status');
+      const assetPaths = document.getElementById('asset-paths');
+      
       const loadReactApp = async () => {
         try {
-          // Use hardcoded paths to avoid Django static file errors
-          const cssPath = '/static/assets/index.css';
-          const jsPath = '/static/assets/index.js';
+          // Try multiple possible asset paths
+          const possiblePaths = [
+            '/static/assets/index.css',
+            '/static/index.css', 
+            '/staticfiles/assets/index.css',
+            '/assets/index.css'
+          ];
           
-          // Test if assets exist with a simple fetch
-          const cssResponse = await fetch(cssPath, { method: 'HEAD' });
+          let foundCss = null;
+          let foundJs = null;
           
-          if (cssResponse.ok) {
+          // Test each possible CSS path
+          for (const path of possiblePaths) {
+            try {
+              const response = await fetch(path, { method: 'HEAD' });
+              if (response.ok && response.headers.get('content-type')?.includes('text/css')) {
+                foundCss = path;
+                break;
+              }
+            } catch (e) {
+              // Continue to next path
+            }
+          }
+          
+          // Test corresponding JS paths
+          if (foundCss) {
+            const jsPath = foundCss.replace('.css', '.js');
+            try {
+              const jsResponse = await fetch(jsPath, { method: 'HEAD' });
+              if (jsResponse.ok) {
+                foundJs = jsPath;
+              }
+            } catch (e) {
+              // JS not found
+            }
+          }
+          
+          assetPaths.textContent = `CSS: ${foundCss || 'Not found'}, JS: ${foundJs || 'Not found'}`;
+          
+          if (foundCss && foundJs) {
             // Load CSS
             const cssLink = document.createElement('link');
             cssLink.rel = 'stylesheet';
-            cssLink.href = cssPath;
+            cssLink.href = foundCss;
             document.head.appendChild(cssLink);
             
             // Load JS
             const jsScript = document.createElement('script');
             jsScript.type = 'module';
-            jsScript.src = jsPath;
+            jsScript.src = foundJs;
             document.head.appendChild(jsScript);
             
-            console.log('✅ React app loaded successfully');
+            reactStatus.textContent = '✅ React app loaded successfully';
+            debugInfo.style.backgroundColor = '#dcfce7';
+            debugInfo.style.color = '#166534';
           } else {
-            console.log('ℹ️ React assets not found, using fallback (this is normal during initial setup)');
+            reactStatus.textContent = '❌ React assets not found - using fallback';
+            
+            // Check what's actually at the static URL
+            try {
+              const staticResponse = await fetch('/static/assets/index.css');
+              const responseText = await staticResponse.text();
+              
+              if (responseText.includes('<!DOCTYPE html>') || responseText.includes('<html>')) {
+                reactStatus.textContent = '⚠️ Static files return HTML (routing issue)';
+              }
+            } catch (e) {
+              reactStatus.textContent = '❌ Static file path completely missing';
+            }
           }
         } catch (e) {
-          console.log('ℹ️ React bundle not available, using fallback interface');
+          reactStatus.textContent = `❌ Error: ${e.message}`;
         }
       };
       
