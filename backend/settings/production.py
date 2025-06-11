@@ -1,3 +1,5 @@
+# Replace the static files section in backend/settings/production.py
+
 import dj_database_url
 from .base import *
 
@@ -20,11 +22,12 @@ SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow embedding in iframes
 
-# Static files for production - Override base settings
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+# OVERRIDE STATIC FILE SETTINGS FOR PRODUCTION
+# Use simpler static file handling to avoid MIME type issues
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
-# WhiteNoise configuration for production
-WHITENOISE_USE_FINDERS = False  # Use collected static files only
+# Disable WhiteNoise compression temporarily
+WHITENOISE_USE_FINDERS = False
 WHITENOISE_AUTOREFRESH = False
 
 # Logging
