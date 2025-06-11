@@ -9,7 +9,7 @@ from .models import User
 from .serializers import UserSerializer, LoginSerializer
 
 class UserViewSet(viewsets.ModelViewSet):
-    queryset = User.objects.all()
+    queryset = User.objects.all()  # This is already correct
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
