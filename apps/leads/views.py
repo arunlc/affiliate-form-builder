@@ -12,6 +12,7 @@ import pandas as pd
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Lead.objects.all()  # Add this line for DRF router
     
     def get_queryset(self):
         user = self.request.user
