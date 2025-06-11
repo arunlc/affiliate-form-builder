@@ -20,7 +20,7 @@ fi
 
 # Install dependencies
 echo "📦 Installing Node.js dependencies..."
-npm ci
+npm install
 
 # Check if all required config files exist
 echo "🔍 Checking frontend configuration..."
