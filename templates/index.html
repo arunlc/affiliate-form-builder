@@ -1,0 +1,29 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Affiliate Form Builder</title>
+    
+    <!-- Load CSS from the built React app -->
+    {% for css_file in css_files %}
+    <link rel="stylesheet" href="{% static css_file %}">
+    {% endfor %}
+    
+    <!-- Fallback: Try to load the main CSS file -->
+    <link rel="stylesheet" href="{% static 'assets/index.css' %}" onerror="this.remove();">
+  </head>
+  <body>
+    <div id="root"></div>
+    
+    <!-- Load JS from the built React app -->
+    {% for js_file in js_files %}
+    <script type="module" src="{% static js_file %}"></script>
+    {% endfor %}
+    
+    <!-- Fallback: Try to load the main JS file -->
+    <script type="module" src="{% static 'assets/index.js' %}" onerror="this.remove();"></script>
+  </body>
+</html>
