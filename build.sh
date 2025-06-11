@@ -86,8 +86,19 @@ python manage.py makemigrations forms
 python manage.py makemigrations affiliates
 python manage.py makemigrations leads
 
-# Run database migrations
+# Run database migrations (INCLUDING TOKEN AUTH)
 echo "🗄️ Running migrations..."
 python manage.py migrate
+
+# Create tokens for existing users (if any)
+echo "🔑 Setting up authentication tokens..."
+python manage.py shell -c "
+from django.contrib.auth import get_user_model
+from rest_framework.authtoken.models import Token
+User = get_user_model()
+for user in User.objects.all():
+    Token.objects.get_or_create(user=user)
+    print(f'Token created for user: {user.username}')
+"
 
 echo "✅ Build process completed successfully!"
