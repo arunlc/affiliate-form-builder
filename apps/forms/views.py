@@ -14,6 +14,7 @@ from .serializers import FormSerializer
 class FormViewSet(viewsets.ModelViewSet):
     serializer_class = FormSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Form.objects.all()  # Add this line for DRF router
     
     def get_queryset(self):
         if self.request.user.user_type == 'admin':
