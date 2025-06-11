@@ -7,9 +7,9 @@ from .models import Affiliate
 from .serializers import AffiliateSerializer
 
 class AffiliateViewSet(viewsets.ModelViewSet):
-    queryset = Affiliate.objects.all()
     serializer_class = AffiliateSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Affiliate.objects.all()  # Add this line for DRF router
 
 class AffiliateStatsView(APIView):
     permission_classes = [IsAuthenticated]
