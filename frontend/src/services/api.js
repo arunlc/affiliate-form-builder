@@ -1,7 +1,30 @@
 // frontend/src/services/api.js
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+// Determine API base URL based on environment
+const getApiBaseUrl = () => {
+  // Check for environment variable first
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // Auto-detect based on current domain
+  if (typeof window !== 'undefined') {
+    const { protocol, hostname } = window.location
+    
+    // If on Render (or any production domain)
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return `${protocol}//${hostname}/api`
+    }
+  }
+  
+  // Fallback to localhost for development
+  return 'http://localhost:8000/api'
+}
+
+const API_BASE_URL = getApiBaseUrl()
+
+console.log('🔗 API Base URL:', API_BASE_URL) // Debug log
 
 const api = axios.create({
   baseURL: API_BASE_URL,
