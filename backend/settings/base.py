@@ -19,9 +19,10 @@ THIRD_PARTY_APPS = [
     'corsheaders',
 ]
 
+# IMPORTANT: Users app must come first since other apps depend on the custom User model
 LOCAL_APPS = [
+    'apps.users',  # Must be first!
     'apps.core',
-    'apps.users',
     'apps.forms',
     'apps.leads',
     'apps.affiliates',
@@ -113,5 +114,5 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
 
-# Custom User Model
+# Custom User Model - MUST come after INSTALLED_APPS
 AUTH_USER_MODEL = 'users.User'
