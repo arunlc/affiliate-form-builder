@@ -5,36 +5,109 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Affiliate Form Builder</title>
+    <!-- Basic fallback styles -->
+    <style>
+      .fallback-container {
+        min-height: 100vh;
+        background-color: #f9fafb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      .fallback-content {
+        text-align: center;
+        max-width: 600px;
+        padding: 2rem;
+      }
+      .fallback-title {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #111827;
+        margin-bottom: 1rem;
+      }
+      .fallback-subtitle {
+        color: #6b7280;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+      }
+      .fallback-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+      .fallback-btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+        display: inline-block;
+      }
+      .fallback-btn-primary {
+        background-color: #2563eb;
+        color: white;
+      }
+      .fallback-btn-primary:hover {
+        background-color: #1d4ed8;
+      }
+      .fallback-btn-secondary {
+        background-color: #16a34a;
+        color: white;
+      }
+      .fallback-btn-secondary:hover {
+        background-color: #15803d;
+      }
+      .fallback-accounts {
+        margin-top: 2rem;
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+      .fallback-code {
+        background-color: #e5e7eb;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-family: monospace;
+        color: #374151;
+      }
+      .fallback-footer {
+        margin-top: 1.5rem;
+        color: #9ca3af;
+        font-size: 0.8rem;
+      }
+    </style>
   </head>
   <body>
     <div id="root">
-      <div class="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div class="text-center">
-          <h1 class="text-4xl font-bold text-gray-900 mb-4">
+      <!-- Fallback content with inline styles -->
+      <div class="fallback-container">
+        <div class="fallback-content">
+          <h1 class="fallback-title">
             Affiliate Form Builder SaaS
           </h1>
-          <p class="text-gray-600 mb-8">
+          <p class="fallback-subtitle">
             Platform Ready for Deployment! 🚀
           </p>
-          <div class="space-x-4">
-            <a href="/admin" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-block transition-colors">
+          <div class="fallback-buttons">
+            <a href="/admin" class="fallback-btn fallback-btn-primary">
               Admin Panel
             </a>
-            <a href="/api" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg inline-block transition-colors">
+            <a href="/api" class="fallback-btn fallback-btn-secondary">
               API Documentation
             </a>
           </div>
-          <div class="mt-8 text-sm text-gray-500">
-            <p class="mb-2">Test Accounts Available:</p>
-            <div class="space-y-1">
-              <p>🔑 Affiliate: <code class="bg-gray-200 px-2 py-1 rounded">affiliate1 / affiliate123</code></p>
-              <p>🔑 Operations: <code class="bg-gray-200 px-2 py-1 rounded">operations / ops123</code></p>
+          <div class="fallback-accounts">
+            <p style="margin-bottom: 0.5rem;">Test Accounts Available:</p>
+            <div style="margin-bottom: 0.25rem;">
+              🔑 Affiliate: <span class="fallback-code">affiliate1 / affiliate123</span>
+            </div>
+            <div>
+              🔑 Operations: <span class="fallback-code">operations / ops123</span>
             </div>
           </div>
-          <div class="mt-6">
-            <p class="text-xs text-gray-400">
-              Built with Django + React | Ready for form building & affiliate tracking
-            </p>
+          <div class="fallback-footer">
+            Built with Django + React | Ready for form building & affiliate tracking
           </div>
         </div>
       </div>
@@ -42,39 +115,39 @@
     
     <!-- Try to load React bundle if it exists -->
     <script>
-      // Check if React files exist and load them dynamically
       const loadReactApp = async () => {
         try {
-          // Try to fetch and load the built React app
-          const response = await fetch('{% static "index.html" %}');
-          if (response.ok) {
-            const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
+          // Try to load built React assets directly
+          const cssPath = '{% static "assets/index.css" %}';
+          const jsPath = '{% static "assets/index.js" %}';
+          
+          // Test if assets exist
+          const cssResponse = await fetch(cssPath);
+          const jsResponse = await fetch(jsPath);
+          
+          if (cssResponse.ok && jsResponse.ok) {
+            // Load CSS
+            const cssLink = document.createElement('link');
+            cssLink.rel = 'stylesheet';
+            cssLink.href = cssPath;
+            document.head.appendChild(cssLink);
             
-            // Load CSS files
-            doc.querySelectorAll('link[rel="stylesheet"]').forEach(link => {
-              if (!document.querySelector(`link[href="${link.href}"]`)) {
-                document.head.appendChild(link.cloneNode(true));
-              }
-            });
+            // Load JS
+            const jsScript = document.createElement('script');
+            jsScript.type = 'module';
+            jsScript.src = jsPath;
+            document.head.appendChild(jsScript);
             
-            // Load JS files
-            doc.querySelectorAll('script[src]').forEach(script => {
-              if (!document.querySelector(`script[src="${script.src}"]`)) {
-                const newScript = document.createElement('script');
-                newScript.src = script.src;
-                newScript.type = script.type || 'module';
-                document.head.appendChild(newScript);
-              }
-            });
+            console.log('React app loaded successfully');
+          } else {
+            console.log('React assets not found, using fallback');
           }
         } catch (e) {
           console.log('React bundle not found, using fallback HTML');
         }
       };
       
-      // Try to load React app
+      // Load React app
       loadReactApp();
     </script>
   </body>
