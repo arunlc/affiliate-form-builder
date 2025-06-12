@@ -10,5 +10,4 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('<uuid:form_id>/', views.EmbedFormView.as_view(), name='embed_form'),
     path('<uuid:form_id>/submit/', views.FormSubmissionView.as_view(), name='form_submit'),
-    path('<uuid:form_id>/stats/', views.FormStatsView.as_view(), name='form_stats'),
 ]
