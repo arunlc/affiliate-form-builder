@@ -1,4 +1,3 @@
-<!-- templates/embed/form.html - Fixed version -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -23,28 +22,6 @@
             width: 100%;
             max-width: 500px;
             padding: 40px;
-        }
-        .form-title {
-            font-size: 28px;
-            font-weight: bold;
-            color: #1f2937;
-            margin-bottom: 8px;
-            text-align: center;
-        }
-        .form-description {
-            color: #6b7280;
-            margin-bottom: 32px;
-            text-align: center;
-        }
-        .form-field {
-            margin-bottom: 20px;
-        }
-        .form-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #374151;
-            margin-bottom: 6px;
         }
         .form-input {
             width: 100%;
@@ -76,12 +53,6 @@
             transform: translateY(-1px);
             box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
         }
-        .form-submit:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        .required { color: #ef4444; }
         .message {
             margin-top: 16px;
             padding: 12px;
@@ -99,47 +70,31 @@
             color: #dc2626;
             border: 1px solid #fecaca;
         }
-        .loading-spinner {
-            display: none;
-            width: 20px;
-            height: 20px;
-            border: 2px solid #ffffff;
-            border-top: 2px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
     </style>
 </head>
 <body>
     <div class="form-container">
         <div class="form-card">
-            <h2 class="form-title">{{ form.name }}</h2>
+            <h2 style="font-size: 28px; font-weight: bold; color: #1f2937; margin-bottom: 8px; text-align: center;">{{ form.name }}</h2>
             
             {% if form.description %}
-            <p class="form-description">{{ form.description }}</p>
+            <p style="color: #6b7280; margin-bottom: 32px; text-align: center;">{{ form.description }}</p>
             {% endif %}
             
             <form id="leadForm">
                 {% csrf_token %}
                 
-                <!-- Dynamic form fields -->
-                {% for field in form_fields %}
-                <div class="form-field">
-                    <label class="form-label">
+                {% for field in form.fields.all %}
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">
                         {{ field.label }}
-                        {% if field.is_required %}<span class="required">*</span>{% endif %}
+                        {% if field.is_required %}<span style="color: #ef4444;">*</span>{% endif %}
                     </label>
                     
                     {% if field.field_type == 'text' %}
                     <input 
                         type="text" 
-                        name="{{ field.label|lower|cut:' ' }}"
-                        id="field_{{ field.id }}"
+                        name="{{ field.label|lower|slugify }}"
                         placeholder="{{ field.placeholder }}"
                         {% if field.is_required %}required{% endif %}
                         class="form-input"
@@ -148,7 +103,6 @@
                     <input 
                         type="email" 
                         name="email"
-                        id="field_{{ field.id }}"
                         placeholder="{{ field.placeholder }}"
                         {% if field.is_required %}required{% endif %}
                         class="form-input"
@@ -157,15 +111,13 @@
                     <input 
                         type="tel" 
                         name="phone"
-                        id="field_{{ field.id }}"
                         placeholder="{{ field.placeholder }}"
                         {% if field.is_required %}required{% endif %}
                         class="form-input"
                     >
                     {% elif field.field_type == 'textarea' %}
                     <textarea 
-                        name="{{ field.label|lower|cut:' ' }}"
-                        id="field_{{ field.id }}"
+                        name="{{ field.label|lower|slugify }}"
                         placeholder="{{ field.placeholder }}"
                         {% if field.is_required %}required{% endif %}
                         rows="4"
@@ -174,8 +126,7 @@
                     ></textarea>
                     {% elif field.field_type == 'select' %}
                     <select 
-                        name="{{ field.label|lower|cut:' ' }}"
-                        id="field_{{ field.id }}"
+                        name="{{ field.label|lower|slugify }}"
                         {% if field.is_required %}required{% endif %}
                         class="form-input"
                     >
@@ -189,17 +140,12 @@
                 {% endfor %}
                 
                 <!-- Hidden fields for tracking -->
-                <input type="hidden" name="affiliate_id" value="{{ affiliate_id }}">
-                <input type="hidden" name="utm_source" value="{{ utm_params.utm_source }}">
-                <input type="hidden" name="utm_medium" value="{{ utm_params.utm_medium }}">
-                <input type="hidden" name="utm_campaign" value="{{ utm_params.utm_campaign }}">
-                <input type="hidden" name="utm_term" value="{{ utm_params.utm_term }}">
-                <input type="hidden" name="utm_content" value="{{ utm_params.utm_content }}">
+                <input type="hidden" name="affiliate_id" value="{{ request.GET.affiliate }}">
+                <input type="hidden" name="utm_source" value="{{ request.GET.utm_source }}">
+                <input type="hidden" name="utm_medium" value="{{ request.GET.utm_medium }}">
+                <input type="hidden" name="utm_campaign" value="{{ request.GET.utm_campaign }}">
                 
-                <button type="submit" class="form-submit" id="submitBtn">
-                    <div class="loading-spinner" id="spinner"></div>
-                    <span id="submitText">Submit</span>
-                </button>
+                <button type="submit" class="form-submit">Submit</button>
             </form>
             
             <div id="message" class="message" style="display: none;"></div>
@@ -207,108 +153,59 @@
     </div>
 
     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.getElementById('leadForm');
-        const submitBtn = document.getElementById('submitBtn');
-        const submitText = document.getElementById('submitText');
-        const spinner = document.getElementById('spinner');
-        const messageDiv = document.getElementById('message');
+    document.getElementById('leadForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
         
-        console.log('Form initialized for: {{ form.name }}');
+        const formData = new FormData(this);
+        const data = {};
+        const utmParams = {};
         
-        form.addEventListener('submit', async function(e) {
-            e.preventDefault();
-            
-            console.log('Form submitted');
-            
-            // Show loading state
-            submitBtn.disabled = true;
-            spinner.style.display = 'inline-block';
-            submitText.textContent = 'Submitting...';
-            messageDiv.style.display = 'none';
-            
-            // Collect form data
-            const formData = new FormData(form);
-            const data = {};
-            const utmParams = {};
-            
-            for (let [key, value] of formData.entries()) {
-                if (key.startsWith('utm_')) {
-                    utmParams[key] = value;
-                } else if (key === 'affiliate_id') {
-                    // Keep separate
-                } else {
-                    data[key] = value;
-                }
+        for (let [key, value] of formData.entries()) {
+            if (key.startsWith('utm_')) {
+                utmParams[key] = value;
+            } else if (key === 'affiliate_id') {
+                // Keep separate
+            } else {
+                data[key] = value;
             }
-            
-            const payload = {
-                form_data: data,
-                affiliate_id: formData.get('affiliate_id'),
-                utm_params: utmParams
-            };
-            
-            console.log('Payload:', payload);
-            
-            try {
-                const response = await fetch(`/embed/{{ form.id }}/submit/`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                    },
-                    body: JSON.stringify(payload)
-                });
-                
-                const result = await response.json();
-                console.log('Response:', result);
-                
-                if (response.ok) {
-                    messageDiv.className = 'message success';
-                    messageDiv.textContent = result.message || 'Thank you! Your submission has been received.';
-                    form.reset();
-                    
-                    // Send success message to parent window if embedded
-                    if (window.parent !== window) {
-                        window.parent.postMessage({
-                            type: 'form_success',
-                            formId: '{{ form.id }}',
-                            leadId: result.lead_id
-                        }, '*');
-                    }
-                } else {
-                    throw new Error(result.error || 'Submission failed');
-                }
-                
-            } catch (error) {
-                console.error('Submission error:', error);
-                messageDiv.className = 'message error';
-                messageDiv.textContent = error.message || 'There was an error submitting the form. Please try again.';
-            } finally {
-                // Reset button state
-                submitBtn.disabled = false;
-                spinner.style.display = 'none';
-                submitText.textContent = 'Submit';
-                messageDiv.style.display = 'block';
-            }
-        });
-    });
-    
-    // Auto-resize iframe if embedded
-    function resizeIframe() {
-        const height = document.body.scrollHeight;
-        if (window.parent !== window) {
-            window.parent.postMessage({
-                type: 'resize',
-                formId: '{{ form.id }}',
-                height: height
-            }, '*');
         }
-    }
-    
-    // Resize on load and when content changes
-    window.addEventListener('load', resizeIframe);
-    new ResizeObserver(resizeIframe).observe(document.body);
+        
+        const payload = {
+            form_data: data,
+            affiliate_id: formData.get('affiliate_id'),
+            utm_params: utmParams
+        };
+        
+        try {
+            const response = await fetch('/embed/{{ form.id }}/submit/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            const messageDiv = document.getElementById('message');
+            
+            if (response.ok) {
+                messageDiv.className = 'message success';
+                messageDiv.textContent = result.message || 'Thank you! Your submission has been received.';
+                this.reset();
+            } else {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = result.error || 'There was an error submitting the form. Please try again.';
+            }
+            messageDiv.style.display = 'block';
+        } catch (error) {
+            console.error('Error:', error);
+            const messageDiv = document.getElementById('message');
+            messageDiv.className = 'message error';
+            messageDiv.textContent = 'Network error. Please try again.';
+            messageDiv.style.display = 'block';
+        }
+    });
     </script>
 </body>
 </html>
