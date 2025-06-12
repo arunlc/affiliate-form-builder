@@ -1,3 +1,4 @@
+// frontend/src/pages/FormsPage.jsx - Fixed button handlers
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
@@ -12,16 +13,44 @@ import {
   ExternalLink,
   BarChart3,
   Calendar,
-  Users
+  Users,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react'
 
 const FormCard = ({ form, onEdit, onDuplicate, onDelete, onViewStats }) => {
-  const embedUrl = `https://affiliate-form-builder.onrender.com/embed/${form.id}/`
+  const [showStats, setShowStats] = useState(false)
+  const [copying, setCopying] = useState(false)
   
-  const copyEmbedCode = () => {
-    const embedCode = `<iframe src="${embedUrl}" width="100%" height="600px" frameborder="0"></iframe>`
-    navigator.clipboard.writeText(embedCode)
-    // Could add toast notification here
+  // Use the current domain for embed URL
+  const baseUrl = window.location.origin
+  const embedUrl = `${baseUrl}/embed/${form.id}/`
+  const embedCode = `<iframe src="${embedUrl}" width="100%" height="600px" frameborder="0"></iframe>`
+  
+  const copyEmbedCode = async () => {
+    setCopying(true)
+    try {
+      await navigator.clipboard.writeText(embedCode)
+      // Show success feedback
+      const originalText = 'Copy Embed Code'
+      // You could add a toast notification here
+      setTimeout(() => setCopying(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = embedCode
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setCopying(false)
+    }
+  }
+
+  const openPreview = () => {
+    const previewUrl = `${embedUrl}?preview=true&utm_source=preview&affiliate=demo`
+    window.open(previewUrl, '_blank', 'width=600,height=700,scrollbars=yes,resizable=yes')
   }
 
   const getStatusColor = (isActive) => {
@@ -61,7 +90,10 @@ const FormCard = ({ form, onEdit, onDuplicate, onDelete, onViewStats }) => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => onViewStats(form)}
+              onClick={() => {
+                setShowStats(!showStats)
+                if (!showStats) onViewStats(form)
+              }}
               className="flex items-center px-3 py-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm"
               title="View Statistics"
             >
@@ -69,25 +101,24 @@ const FormCard = ({ form, onEdit, onDuplicate, onDelete, onViewStats }) => {
               Stats
             </button>
             
-            <a
-              href={embedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={openPreview}
               className="flex items-center px-3 py-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors text-sm"
               title="Preview Form"
             >
               <Eye className="h-4 w-4 mr-1" />
               Preview
-            </a>
+            </button>
           </div>
           
           <div className="flex items-center space-x-1">
             <button
               onClick={copyEmbedCode}
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Copy Embed Code"
+              disabled={copying}
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+              title={copying ? "Copied!" : "Copy Embed Code"}
             >
-              <Copy className="h-4 w-4" />
+              {copying ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
             </button>
             
             <button
@@ -115,12 +146,39 @@ const FormCard = ({ form, onEdit, onDuplicate, onDelete, onViewStats }) => {
             </button>
           </div>
         </div>
+        
+        {/* Embed URL Display */}
+        <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+          <p className="text-xs text-gray-500 mb-1">Embed URL:</p>
+          <code className="text-xs text-gray-700 break-all">{embedUrl}</code>
+        </div>
+        
+        {/* Stats Display */}
+        {showStats && (
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="font-medium text-blue-900 mb-2">Form Statistics</h4>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <div className="text-lg font-bold text-blue-700">0</div>
+                <div className="text-xs text-blue-600">Views</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-green-700">0</div>
+                <div className="text-xs text-green-600">Submissions</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-purple-700">0%</div>
+                <div className="text-xs text-purple-600">Conversion</div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
 }
 
-const CreateFormModal = ({ isOpen, onClose, onSubmit }) => {
+const CreateFormModal = ({ isOpen, onClose, onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -142,7 +200,7 @@ const CreateFormModal = ({ isOpen, onClose, onSubmit }) => {
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Form Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Form Name *</label>
             <input
               type="text"
               required
@@ -150,6 +208,7 @@ const CreateFormModal = ({ isOpen, onClose, onSubmit }) => {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., Contact Form, Newsletter Signup"
+              disabled={loading}
             />
           </div>
           
@@ -161,6 +220,7 @@ const CreateFormModal = ({ isOpen, onClose, onSubmit }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows="3"
               placeholder="Describe the purpose of this form"
+              disabled={loading}
             />
           </div>
           
@@ -170,6 +230,7 @@ const CreateFormModal = ({ isOpen, onClose, onSubmit }) => {
               value={formData.form_type}
               onChange={(e) => setFormData({ ...formData, form_type: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={loading}
             >
               <option value="lead_capture">Lead Capture</option>
               <option value="contact">Contact Form</option>
@@ -181,15 +242,20 @@ const CreateFormModal = ({ isOpen, onClose, onSubmit }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              disabled={loading}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center"
             >
-              Create Form
+              {loading && (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              )}
+              {loading ? 'Creating...' : 'Create Form'}
             </button>
           </div>
         </form>
@@ -198,8 +264,31 @@ const CreateFormModal = ({ isOpen, onClose, onSubmit }) => {
   )
 }
 
+const NotificationToast = ({ message, type, onClose }) => {
+  React.useEffect(() => {
+    const timer = setTimeout(onClose, 3000)
+    return () => clearTimeout(timer)
+  }, [onClose])
+
+  const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500'
+  const icon = type === 'success' ? <CheckCircle className="h-5 w-5" /> : <AlertCircle className="h-5 w-5" />
+
+  return (
+    <div className="fixed top-4 right-4 z-50">
+      <div className={`${bgColor} text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3`}>
+        {icon}
+        <span>{message}</span>
+        <button onClick={onClose} className="ml-4 text-white hover:text-gray-200">
+          ×
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function FormsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [notification, setNotification] = useState(null)
   const queryClient = useQueryClient()
 
   // Fetch forms
@@ -208,12 +297,20 @@ export default function FormsPage() {
 
   // Create form mutation
   const createFormMutation = useMutation(formsAPI.createForm, {
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries('forms')
       setIsCreateModalOpen(false)
+      setNotification({
+        type: 'success',
+        message: 'Form created successfully!'
+      })
     },
     onError: (error) => {
       console.error('Error creating form:', error)
+      setNotification({
+        type: 'error',
+        message: error.response?.data?.message || 'Failed to create form'
+      })
     }
   })
 
@@ -221,32 +318,64 @@ export default function FormsPage() {
   const deleteFormMutation = useMutation(formsAPI.deleteForm, {
     onSuccess: () => {
       queryClient.invalidateQueries('forms')
+      setNotification({
+        type: 'success',
+        message: 'Form deleted successfully!'
+      })
+    },
+    onError: (error) => {
+      setNotification({
+        type: 'error',
+        message: 'Failed to delete form'
+      })
     }
   })
+
+  // Duplicate form mutation
+  const duplicateFormMutation = useMutation(
+    (formId) => formsAPI.duplicateForm(formId),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('forms')
+        setNotification({
+          type: 'success',
+          message: 'Form duplicated successfully!'
+        })
+      },
+      onError: (error) => {
+        setNotification({
+          type: 'error',
+          message: 'Failed to duplicate form'
+        })
+      }
+    }
+  )
 
   const handleCreateForm = (formData) => {
     createFormMutation.mutate(formData)
   }
 
   const handleDeleteForm = (form) => {
-    if (window.confirm(`Are you sure you want to delete "${form.name}"?`)) {
+    if (window.confirm(`Are you sure you want to delete "${form.name}"? This action cannot be undone.`)) {
       deleteFormMutation.mutate(form.id)
     }
   }
 
   const handleDuplicateForm = (form) => {
-    // TODO: Implement duplicate functionality
-    console.log('Duplicate form:', form.id)
+    duplicateFormMutation.mutate(form.id)
   }
 
   const handleEditForm = (form) => {
     // TODO: Implement edit functionality
-    console.log('Edit form:', form.id)
+    setNotification({
+      type: 'success',
+      message: 'Edit functionality coming soon!'
+    })
   }
 
   const handleViewStats = (form) => {
-    // TODO: Implement stats view
-    console.log('View stats for form:', form.id)
+    // For now, just show a message. In a real app, you'd fetch stats
+    console.log('Viewing stats for form:', form.id)
   }
 
   if (isLoading) {
@@ -266,10 +395,12 @@ export default function FormsPage() {
     return (
       <Layout>
         <div className="text-center py-12">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <div className="text-red-600 mb-4">Error loading forms</div>
+          <p className="text-gray-600 mb-4">{error.message}</p>
           <button 
             onClick={() => queryClient.invalidateQueries('forms')}
-            className="text-blue-600 hover:text-blue-700"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
           >
             Try Again
           </button>
@@ -289,7 +420,8 @@ export default function FormsPage() {
           </div>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+            disabled={createFormMutation.isLoading}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
           >
             <Plus className="h-5 w-5 mr-2" />
             Create New Form
@@ -330,7 +462,17 @@ export default function FormsPage() {
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onSubmit={handleCreateForm}
+          loading={createFormMutation.isLoading}
         />
+
+        {/* Notification Toast */}
+        {notification && (
+          <NotificationToast
+            message={notification.message}
+            type={notification.type}
+            onClose={() => setNotification(null)}
+          />
+        )}
       </div>
     </Layout>
   )
