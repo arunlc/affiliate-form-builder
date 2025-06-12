@@ -1,3 +1,4 @@
+# backend/urls.py - FIXED URL routing
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
@@ -6,23 +7,27 @@ from django.views.generic import TemplateView
 from django.views.static import serve
 
 urlpatterns = [
-    # API routes (highest priority)
+    # Admin
     path('admin/', admin.site.urls),
+    
+    # API routes (highest priority)
     path('api/auth/', include('apps.users.urls')),
-    path('api/forms/', include('apps.forms.urls')),
+    path('api/forms/', include('apps.forms.urls')),  # This handles /api/forms/forms/ etc.
     path('api/leads/', include('apps.leads.urls')),
     path('api/affiliates/', include('apps.affiliates.urls')),
     path('api/core/', include('apps.core.urls')),
-    path('embed/', include('apps.forms.urls')),  # For embedded forms
+    
+    # FIXED: Embed routes - separate from API
+    path('embed/', include('apps.forms.urls')),  # This handles /embed/<uuid>/ and /embed/<uuid>/submit/
 ]
 
-# Static file serving (IMPORTANT: Before catch-all routes)
+# Static file serving
 if settings.DEBUG:
     # Development static/media files
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 else:
-    # Production static file serving - EXPLICIT ROUTE
+    # Production static file serving
     urlpatterns += [
         re_path(r'^static/(?P<path>.*)$', serve, {
             'document_root': settings.STATIC_ROOT,
