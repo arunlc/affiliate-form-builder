@@ -1,0 +1,314 @@
+<!-- templates/embed/form.html - Fixed version -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ form.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        .form-container { 
+            min-height: 100vh; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .form-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+        }
+        .form-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .form-description {
+            color: #6b7280;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+        .form-field {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .form-submit {
+            width: 100%;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            color: white;
+            font-weight: 600;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .form-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
+        }
+        .form-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .required { color: #ef4444; }
+        .message {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+        }
+        .message.success {
+            background-color: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+        .message.error {
+            background-color: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #ffffff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <div class="form-card">
+            <h2 class="form-title">{{ form.name }}</h2>
+            
+            {% if form.description %}
+            <p class="form-description">{{ form.description }}</p>
+            {% endif %}
+            
+            <form id="leadForm">
+                {% csrf_token %}
+                
+                <!-- Dynamic form fields -->
+                {% for field in form_fields %}
+                <div class="form-field">
+                    <label class="form-label">
+                        {{ field.label }}
+                        {% if field.is_required %}<span class="required">*</span>{% endif %}
+                    </label>
+                    
+                    {% if field.field_type == 'text' %}
+                    <input 
+                        type="text" 
+                        name="{{ field.label|lower|cut:' ' }}"
+                        id="field_{{ field.id }}"
+                        placeholder="{{ field.placeholder }}"
+                        {% if field.is_required %}required{% endif %}
+                        class="form-input"
+                    >
+                    {% elif field.field_type == 'email' %}
+                    <input 
+                        type="email" 
+                        name="email"
+                        id="field_{{ field.id }}"
+                        placeholder="{{ field.placeholder }}"
+                        {% if field.is_required %}required{% endif %}
+                        class="form-input"
+                    >
+                    {% elif field.field_type == 'phone' %}
+                    <input 
+                        type="tel" 
+                        name="phone"
+                        id="field_{{ field.id }}"
+                        placeholder="{{ field.placeholder }}"
+                        {% if field.is_required %}required{% endif %}
+                        class="form-input"
+                    >
+                    {% elif field.field_type == 'textarea' %}
+                    <textarea 
+                        name="{{ field.label|lower|cut:' ' }}"
+                        id="field_{{ field.id }}"
+                        placeholder="{{ field.placeholder }}"
+                        {% if field.is_required %}required{% endif %}
+                        rows="4"
+                        class="form-input"
+                        style="resize: vertical; min-height: 100px;"
+                    ></textarea>
+                    {% elif field.field_type == 'select' %}
+                    <select 
+                        name="{{ field.label|lower|cut:' ' }}"
+                        id="field_{{ field.id }}"
+                        {% if field.is_required %}required{% endif %}
+                        class="form-input"
+                    >
+                        <option value="">Select an option</option>
+                        {% for option in field.options %}
+                        <option value="{{ option }}">{{ option }}</option>
+                        {% endfor %}
+                    </select>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <!-- Hidden fields for tracking -->
+                <input type="hidden" name="affiliate_id" value="{{ affiliate_id }}">
+                <input type="hidden" name="utm_source" value="{{ utm_params.utm_source }}">
+                <input type="hidden" name="utm_medium" value="{{ utm_params.utm_medium }}">
+                <input type="hidden" name="utm_campaign" value="{{ utm_params.utm_campaign }}">
+                <input type="hidden" name="utm_term" value="{{ utm_params.utm_term }}">
+                <input type="hidden" name="utm_content" value="{{ utm_params.utm_content }}">
+                
+                <button type="submit" class="form-submit" id="submitBtn">
+                    <div class="loading-spinner" id="spinner"></div>
+                    <span id="submitText">Submit</span>
+                </button>
+            </form>
+            
+            <div id="message" class="message" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('leadForm');
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const spinner = document.getElementById('spinner');
+        const messageDiv = document.getElementById('message');
+        
+        console.log('Form initialized for: {{ form.name }}');
+        
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            console.log('Form submitted');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+            submitText.textContent = 'Submitting...';
+            messageDiv.style.display = 'none';
+            
+            // Collect form data
+            const formData = new FormData(form);
+            const data = {};
+            const utmParams = {};
+            
+            for (let [key, value] of formData.entries()) {
+                if (key.startsWith('utm_')) {
+                    utmParams[key] = value;
+                } else if (key === 'affiliate_id') {
+                    // Keep separate
+                } else {
+                    data[key] = value;
+                }
+            }
+            
+            const payload = {
+                form_data: data,
+                affiliate_id: formData.get('affiliate_id'),
+                utm_params: utmParams
+            };
+            
+            console.log('Payload:', payload);
+            
+            try {
+                const response = await fetch(`/embed/{{ form.id }}/submit/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const result = await response.json();
+                console.log('Response:', result);
+                
+                if (response.ok) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = result.message || 'Thank you! Your submission has been received.';
+                    form.reset();
+                    
+                    // Send success message to parent window if embedded
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'form_success',
+                            formId: '{{ form.id }}',
+                            leadId: result.lead_id
+                        }, '*');
+                    }
+                } else {
+                    throw new Error(result.error || 'Submission failed');
+                }
+                
+            } catch (error) {
+                console.error('Submission error:', error);
+                messageDiv.className = 'message error';
+                messageDiv.textContent = error.message || 'There was an error submitting the form. Please try again.';
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+                submitText.textContent = 'Submit';
+                messageDiv.style.display = 'block';
+            }
+        });
+    });
+    
+    // Auto-resize iframe if embedded
+    function resizeIframe() {
+        const height = document.body.scrollHeight;
+        if (window.parent !== window) {
+            window.parent.postMessage({
+                type: 'resize',
+                formId: '{{ form.id }}',
+                height: height
+            }, '*');
+        }
+    }
+    
+    // Resize on load and when content changes
+    window.addEventListener('load', resizeIframe);
+    new ResizeObserver(resizeIframe).observe(document.body);
+    </script>
+</body>
+</html>
