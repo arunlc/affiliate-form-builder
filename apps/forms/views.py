@@ -131,61 +131,25 @@ class FormViewSet(viewsets.ModelViewSet):
 
 @method_decorator(xframe_options_exempt, name='dispatch')
 class EmbedFormView(APIView):
-    """Render embeddable form - Fixed version"""
-    permission_classes = []  # No authentication required for embed
+    """Render embeddable form"""
+    permission_classes = []  # No auth required for public forms
     
     def get(self, request, form_id):
         try:
-            logger.info(f"Attempting to render form: {form_id}")
-            
-            # Get the form
             form = get_object_or_404(Form, id=form_id, is_active=True)
-            logger.info(f"Found form: {form.name}")
-            
-            # Get form fields
-            form_fields = form.fields.all().order_by('order')
-            logger.info(f"Form has {form_fields.count()} fields")
-            
-            # Extract URL parameters
-            affiliate_id = request.GET.get('affiliate')
-            utm_params = {
-                'utm_source': request.GET.get('utm_source', ''),
-                'utm_medium': request.GET.get('utm_medium', ''),
-                'utm_campaign': request.GET.get('utm_campaign', ''),
-                'utm_term': request.GET.get('utm_term', ''),
-                'utm_content': request.GET.get('utm_content', ''),
-            }
             
             context = {
                 'form': form,
-                'form_fields': form_fields,
-                'affiliate_id': affiliate_id,
-                'utm_params': utm_params,
+                'request': request,
             }
             
-            logger.info(f"Rendering form with context: {context.keys()}")
-            
-            # Use Django's render shortcut
             response = render(request, 'embed/form.html', context)
-            
-            # Add headers to allow embedding
             response['X-Frame-Options'] = 'ALLOWALL'
             response['Content-Security-Policy'] = "frame-ancestors *;"
-            
             return response
             
-        except Form.DoesNotExist:
-            logger.error(f"Form not found: {form_id}")
-            return HttpResponse("Form not found", status=404)
-        except ValidationError as e:
-            logger.error(f"Validation error: {e}")
-            return HttpResponse("Invalid form ID", status=400)
         except Exception as e:
-            logger.error(f"Unexpected error in EmbedFormView: {e}")
-            import traceback
-            traceback.print_exc()
-            return HttpResponse(f"Server error: {str(e)}", status=500)
-
+            return HttpResponse(f"Form not available: {str(e)}", status=500)
 @method_decorator(csrf_exempt, name='dispatch')
 class FormSubmissionView(APIView):
     """Handle form submissions - Fixed version"""
