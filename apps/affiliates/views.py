@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 class AffiliateViewSet(viewsets.ModelViewSet):
     serializer_class = AffiliateSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Affiliate.objects.all()
     
     def get_queryset(self):
         # Only admins can manage affiliates
