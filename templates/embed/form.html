@@ -1,3 +1,4 @@
+<!-- templates/embed/form.html - Enhanced Modern Form Template -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,7 +7,12 @@
     <title>{{ form.name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { margin: 0; padding: 0; }
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
         .form-container { 
             min-height: 100vh; 
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -14,81 +20,340 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
+            position: relative;
         }
+        
+        .form-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            opacity: 0.3;
+        }
+        
         .form-card {
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
             width: 100%;
             max-width: 500px;
             padding: 40px;
+            position: relative;
+            z-index: 1;
         }
+        
+        .form-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+        
+        .form-title {
+            font-size: 28px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        
+        .form-description {
+            color: #6b7280;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .required-asterisk {
+            color: #ef4444;
+            margin-left: 4px;
+        }
+        
         .form-input {
             width: 100%;
-            padding: 12px 16px;
+            padding: 16px;
             border: 2px solid #e5e7eb;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
-            transition: border-color 0.2s;
+            transition: all 0.3s ease;
             box-sizing: border-box;
+            background: #ffffff;
         }
+        
         .form-input:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
         }
+        
+        .form-input::placeholder {
+            color: #9ca3af;
+        }
+        
+        .form-select {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            background: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-textarea {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            box-sizing: border-box;
+        }
+        
+        .form-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
         .form-submit {
             width: 100%;
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             font-weight: 600;
-            padding: 14px 24px;
+            padding: 18px 24px;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
+        
         .form-submit:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(102, 126, 234, 0.4);
         }
+        
+        .form-submit:active {
+            transform: translateY(0);
+        }
+        
+        .form-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid #ffffff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         .message {
-            margin-top: 16px;
-            padding: 12px;
-            border-radius: 8px;
+            margin-top: 20px;
+            padding: 16px;
+            border-radius: 12px;
             text-align: center;
             font-weight: 500;
+            display: none;
+            animation: slideIn 0.3s ease-out;
         }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
         .message.success {
             background-color: #dcfce7;
             color: #166534;
             border: 1px solid #bbf7d0;
         }
+        
         .message.error {
             background-color: #fef2f2;
             color: #dc2626;
             border: 1px solid #fecaca;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .checkbox-input {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            margin-top: 2px;
+        }
+        
+        .checkbox-label {
+            font-size: 14px;
+            color: #374151;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+        
+        .radio-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .radio-input {
+            width: 16px;
+            height: 16px;
+            margin: 0;
+        }
+        
+        .radio-label {
+            font-size: 14px;
+            color: #374151;
+            cursor: pointer;
+        }
+        
+        .powered-by {
+            text-align: center;
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 12px;
+            color: #9ca3af;
+        }
+        
+        .powered-by a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .powered-by a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 640px) {
+            .form-container {
+                padding: 16px;
+            }
+            
+            .form-card {
+                padding: 24px;
+            }
+            
+            .form-title {
+                font-size: 24px;
+            }
+        }
+        
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .form-card {
+                background: rgba(31, 41, 55, 0.95);
+                color: #f9fafb;
+            }
+            
+            .form-label {
+                color: #f3f4f6;
+            }
+            
+            .form-description {
+                color: #d1d5db;
+            }
+            
+            .form-input,
+            .form-select,
+            .form-textarea {
+                background: #374151;
+                border-color: #4b5563;
+                color: #f9fafb;
+            }
+            
+            .form-input::placeholder {
+                color: #9ca3af;
+            }
+            
+            .checkbox-label,
+            .radio-label {
+                color: #f3f4f6;
+            }
         }
     </style>
 </head>
 <body>
     <div class="form-container">
         <div class="form-card">
-            <h2 style="font-size: 28px; font-weight: bold; color: #1f2937; margin-bottom: 8px; text-align: center;">{{ form.name }}</h2>
-            
-            {% if form.description %}
-            <p style="color: #6b7280; margin-bottom: 32px; text-align: center;">{{ form.description }}</p>
-            {% endif %}
+            <div class="form-header">
+                <h1 class="form-title">{{ form.name }}</h1>
+                {% if form.description %}
+                <p class="form-description">{{ form.description }}</p>
+                {% endif %}
+            </div>
             
             <form id="leadForm">
                 {% csrf_token %}
                 
                 {% for field in form.fields.all %}
-                <div style="margin-bottom: 20px;">
-                    <label style="display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 6px;">
+                <div class="form-group">
+                    <label class="form-label">
                         {{ field.label }}
-                        {% if field.is_required %}<span style="color: #ef4444;">*</span>{% endif %}
+                        {% if field.is_required %}
+                        <span class="required-asterisk">*</span>
+                        {% endif %}
                     </label>
                     
                     {% if field.field_type == 'text' %}
@@ -99,6 +364,7 @@
                         {% if field.is_required %}required{% endif %}
                         class="form-input"
                     >
+                    
                     {% elif field.field_type == 'email' %}
                     <input 
                         type="email" 
@@ -107,6 +373,7 @@
                         {% if field.is_required %}required{% endif %}
                         class="form-input"
                     >
+                    
                     {% elif field.field_type == 'phone' %}
                     <input 
                         type="tel" 
@@ -115,26 +382,60 @@
                         {% if field.is_required %}required{% endif %}
                         class="form-input"
                     >
+                    
                     {% elif field.field_type == 'textarea' %}
                     <textarea 
                         name="{{ field.label|lower|slugify }}"
                         placeholder="{{ field.placeholder }}"
                         {% if field.is_required %}required{% endif %}
-                        rows="4"
-                        class="form-input"
-                        style="resize: vertical; min-height: 100px;"
+                        class="form-textarea"
                     ></textarea>
+                    
                     {% elif field.field_type == 'select' %}
                     <select 
                         name="{{ field.label|lower|slugify }}"
                         {% if field.is_required %}required{% endif %}
-                        class="form-input"
+                        class="form-select"
                     >
                         <option value="">Select an option</option>
                         {% for option in field.options %}
                         <option value="{{ option }}">{{ option }}</option>
                         {% endfor %}
                     </select>
+                    
+                    {% elif field.field_type == 'checkbox' %}
+                    <div class="checkbox-group">
+                        <input 
+                            type="checkbox" 
+                            name="{{ field.label|lower|slugify }}"
+                            value="yes"
+                            {% if field.is_required %}required{% endif %}
+                            class="checkbox-input"
+                            id="checkbox_{{ field.id }}"
+                        >
+                        <label for="checkbox_{{ field.id }}" class="checkbox-label">
+                            {{ field.placeholder|default:"I agree" }}
+                        </label>
+                    </div>
+                    
+                    {% elif field.field_type == 'radio' %}
+                    <div class="radio-group">
+                        {% for option in field.options %}
+                        <div class="radio-item">
+                            <input 
+                                type="radio" 
+                                name="{{ field.label|lower|slugify }}"
+                                value="{{ option }}"
+                                {% if field.is_required %}required{% endif %}
+                                class="radio-input"
+                                id="radio_{{ field.id }}_{{ forloop.counter }}"
+                            >
+                            <label for="radio_{{ field.id }}_{{ forloop.counter }}" class="radio-label">
+                                {{ option }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -144,68 +445,169 @@
                 <input type="hidden" name="utm_source" value="{{ request.GET.utm_source }}">
                 <input type="hidden" name="utm_medium" value="{{ request.GET.utm_medium }}">
                 <input type="hidden" name="utm_campaign" value="{{ request.GET.utm_campaign }}">
+                <input type="hidden" name="utm_term" value="{{ request.GET.utm_term }}">
+                <input type="hidden" name="utm_content" value="{{ request.GET.utm_content }}">
                 
-                <button type="submit" class="form-submit">Submit</button>
+                <button type="submit" class="form-submit" id="submitBtn">
+                    <span class="loading-spinner" id="loadingSpinner"></span>
+                    <span id="submitText">{{ form.fields_config.submit_button_text|default:"Submit" }}</span>
+                </button>
             </form>
             
-            <div id="message" class="message" style="display: none;"></div>
+            <div id="message" class="message"></div>
+            
+            <div class="powered-by">
+                Powered by <a href="#" target="_blank">Affiliate Forms</a>
+            </div>
         </div>
     </div>
 
     <script>
-    document.getElementById('leadForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
+        // Form submission handler
+        document.getElementById('leadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            const messageDiv = document.getElementById('message');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            loadingSpinner.style.display = 'inline-block';
+            submitText.textContent = 'Submitting...';
+            messageDiv.style.display = 'none';
+            
+            try {
+                const formData = new FormData(this);
+                const data = {};
+                const utmParams = {};
+                
+                // Process form data
+                for (let [key, value] of formData.entries()) {
+                    if (key.startsWith('utm_') || key === 'affiliate_id') {
+                        if (key.startsWith('utm_')) {
+                            utmParams[key] = value;
+                        }
+                    } else if (key !== 'csrfmiddlewaretoken') {
+                        data[key] = value;
+                    }
+                }
+                
+                // Submit to API
+                const response = await fetch('{{ request.build_absolute_uri }}submit/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    },
+                    body: JSON.stringify({
+                        form_data: data,
+                        affiliate_id: formData.get('affiliate_id'),
+                        utm_params: utmParams
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Success
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = result.message || 'Thank you! Your submission has been received.';
+                    messageDiv.style.display = 'block';
+                    
+                    // Reset form
+                    this.reset();
+                    
+                    // Optional: Redirect or track conversion
+                    if (window.gtag) {
+                        gtag('event', 'conversion', {
+                            'send_to': 'AW-CONVERSION_ID/CONVERSION_LABEL'
+                        });
+                    }
+                    
+                    // Optional: Send parent window message for tracking
+                    if (window.parent !== window) {
+                        window.parent.postMessage({
+                            type: 'form_submitted',
+                            form_id: '{{ form.id }}',
+                            success: true
+                        }, '*');
+                    }
+                } else {
+                    // Error
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = result.error || 'There was an error submitting the form. Please try again.';
+                    messageDiv.style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Submission error:', error);
+                messageDiv.className = 'message error';
+                messageDiv.textContent = 'Network error. Please check your connection and try again.';
+                messageDiv.style.display = 'block';
+            } finally {
+                // Reset button state
+                submitBtn.disabled = false;
+                loadingSpinner.style.display = 'none';
+                submitText.textContent = '{{ form.fields_config.submit_button_text|default:"Submit" }}';
+            }
+        });
         
-        const formData = new FormData(this);
-        const data = {};
-        const utmParams = {};
-        
-        for (let [key, value] of formData.entries()) {
-            if (key.startsWith('utm_')) {
-                utmParams[key] = value;
-            } else if (key === 'affiliate_id') {
-                // Keep separate
-            } else {
-                data[key] = value;
+        // Auto-resize for iframe
+        function resizeIframe() {
+            const height = document.body.scrollHeight;
+            if (window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'resize',
+                    height: height,
+                    form_id: '{{ form.id }}'
+                }, '*');
             }
         }
         
-        const payload = {
-            form_data: data,
-            affiliate_id: formData.get('affiliate_id'),
-            utm_params: utmParams
-        };
+        // Initial resize
+        window.addEventListener('load', resizeIframe);
         
-        try {
-            const response = await fetch('/embed/{{ form.id }}/submit/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: JSON.stringify(payload)
+        // Resize on content changes
+        const observer = new MutationObserver(resizeIframe);
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true
+        });
+        
+        // Form validation enhancements
+        const inputs = document.querySelectorAll('.form-input, .form-textarea, .form-select');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.hasAttribute('required') && !this.value.trim()) {
+                    this.style.borderColor = '#ef4444';
+                } else {
+                    this.style.borderColor = '#e5e7eb';
+                }
             });
             
-            const result = await response.json();
-            const messageDiv = document.getElementById('message');
-            
-            if (response.ok) {
-                messageDiv.className = 'message success';
-                messageDiv.textContent = result.message || 'Thank you! Your submission has been received.';
-                this.reset();
-            } else {
-                messageDiv.className = 'message error';
-                messageDiv.textContent = result.error || 'There was an error submitting the form. Please try again.';
-            }
-            messageDiv.style.display = 'block';
-        } catch (error) {
-            console.error('Error:', error);
-            const messageDiv = document.getElementById('message');
-            messageDiv.className = 'message error';
-            messageDiv.textContent = 'Network error. Please try again.';
-            messageDiv.style.display = 'block';
-        }
-    });
+            input.addEventListener('input', function() {
+                if (this.style.borderColor === 'rgb(239, 68, 68)') {
+                    this.style.borderColor = '#e5e7eb';
+                }
+            });
+        });
+        
+        // Email validation
+        const emailInputs = document.querySelectorAll('input[type="email"]');
+        emailInputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (this.value && !emailRegex.test(this.value)) {
+                    this.style.borderColor = '#ef4444';
+                } else if (this.hasAttribute('required') && !this.value) {
+                    this.style.borderColor = '#ef4444';
+                } else {
+                    this.style.borderColor = '#e5e7eb';
+                }
+            });
+        });
     </script>
 </body>
 </html>
