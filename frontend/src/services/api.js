@@ -108,6 +108,9 @@ export const formsAPI = {
   createFormField: (formId, fieldData) => api.post(`/forms/forms/${formId}/fields/`, fieldData),
   updateFormField: (formId, fieldId, fieldData) => api.put(`/forms/forms/${formId}/fields/${fieldId}/`, fieldData),
   deleteFormField: (formId, fieldId) => api.delete(`/forms/forms/${formId}/fields/${fieldId}/`),
+  updateForm: (id, formData) => api.put(`/forms/forms/${id}/`, formData),
+  duplicateForm: (id) => api.post(`/forms/forms/${id}/duplicate/`),
+  getFormStats: (id) => api.get(`/forms/forms/${id}/stats/`),
 }
 
 // Leads API
