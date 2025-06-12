@@ -12,6 +12,7 @@ from .models import Form, FormField
 from .serializers import FormSerializer, FormFieldSerializer
 
 class FormViewSet(viewsets.ModelViewSet):
+    queryset = Form.objects.all()  # ADD THIS DEFAULT QUERYSET
     serializer_class = FormSerializer
     permission_classes = [IsAuthenticated]
     
