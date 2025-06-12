@@ -1,4 +1,5 @@
-# apps/leads/views.py - Enhanced lead management
+# apps/leads/views.py - Quick fix for the queryset issue
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
     permission_classes = [IsAuthenticated]
+    queryset = Lead.objects.all()  # ✅ ADD THIS LINE - This fixes the error!
     
     def get_queryset(self):
         user = self.request.user
@@ -103,6 +105,7 @@ class LeadViewSet(viewsets.ModelViewSet):
             logger.error(f"Error getting notes: {e}")
             return Response({'error': str(e)}, status=500)
 
+# Keep your existing ExportLeadsView and LeadStatsView classes unchanged
 class ExportLeadsView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -242,7 +245,7 @@ class LeadStatsView(APIView):
                 'recent_leads': recent_leads,
                 'growth_rate': round(growth_rate, 2),
                 'top_sources': list(top_sources),
-                'daily_data': daily_data[::-1],  # Reverse to get chronological order
+                'daily_data': daily_data[::-1],  # Reverse for chronological order
             })
             
         except Exception as e:
