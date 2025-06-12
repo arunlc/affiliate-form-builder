@@ -92,25 +92,55 @@ export const authAPI = {
   getProfile: () => api.get('/auth/profile/'),
 }
 
-// Forms API
 export const formsAPI = {
   getForms: (params = {}) => api.get('/forms/forms/', { params }),
   getForm: (id) => api.get(`/forms/forms/${id}/`),
-  createForm: (formData) => api.post('/forms/forms/', formData),
-  updateForm: (id, formData) => api.put(`/forms/forms/${id}/`, formData),
+  
+  // Enhanced create form with field support
+  createForm: (formData) => {
+    // Transform the data to match Django API expectations
+    const apiData = {
+      name: formData.name,
+      description: formData.description,
+      form_type: formData.form_type,
+      is_active: formData.is_active,
+      fields_config: formData.styling_config || {},
+      // Send fields as a separate parameter for the backend to process
+      fields: formData.fields || []
+    }
+    return api.post('/forms/forms/', apiData)
+  },
+  
+  // Enhanced update form with field support
+  updateForm: (id, formData) => {
+    const apiData = {
+      name: formData.name,
+      description: formData.description,
+      form_type: formData.form_type,
+      is_active: formData.is_active,
+      fields_config: formData.styling_config || {},
+      fields: formData.fields || []
+    }
+    return api.put(`/forms/forms/${id}/`, apiData)
+  },
+  
   deleteForm: (id) => api.delete(`/forms/forms/${id}/`),
   duplicateForm: (id) => api.post(`/forms/forms/${id}/duplicate/`),
-  getFormStats: (id) => api.get(`/forms/forms/${id}/stats/`),
-  getFormAnalytics: (id) => api.get(`/forms/forms/${id}/analytics/`),
+  getFormStats: (id, params = {}) => api.get(`/forms/forms/${id}/stats/`, { params }),
+  getFormAnalytics: (id, params = {}) => api.get(`/forms/forms/${id}/analytics/`, { params }),
   
   // Form field management
   getFormFields: (formId) => api.get(`/forms/forms/${formId}/fields/`),
   createFormField: (formId, fieldData) => api.post(`/forms/forms/${formId}/fields/`, fieldData),
   updateFormField: (formId, fieldId, fieldData) => api.put(`/forms/forms/${formId}/fields/${fieldId}/`, fieldData),
   deleteFormField: (formId, fieldId) => api.delete(`/forms/forms/${formId}/fields/${fieldId}/`),
-  updateForm: (id, formData) => api.put(`/forms/forms/${id}/`, formData),
-  duplicateForm: (id) => api.post(`/forms/forms/${id}/duplicate/`),
-  getFormStats: (id) => api.get(`/forms/forms/${id}/stats/`),
+  
+  // Form submissions and analytics
+  getFormSubmissions: (formId, params = {}) => api.get(`/forms/forms/${formId}/submissions/`, { params }),
+  exportFormData: (formId, params = {}) => api.get(`/forms/forms/${formId}/export/`, { 
+    params,
+    responseType: 'blob' 
+  }),
 }
 
 // Leads API
