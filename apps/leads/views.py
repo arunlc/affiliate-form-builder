@@ -1,5 +1,4 @@
-# apps/leads/views.py - Quick fix for the queryset issue
-
+# apps/leads/views.py - Updated for affiliate filtering
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,6 +10,7 @@ from django.utils import timezone
 from datetime import timedelta
 from .models import Lead, LeadNote
 from .serializers import LeadSerializer, LeadNoteSerializer
+from apps.affiliates.models import Affiliate
 import pandas as pd
 import logging
 
@@ -19,19 +19,23 @@ logger = logging.getLogger(__name__)
 class LeadViewSet(viewsets.ModelViewSet):
     serializer_class = LeadSerializer
     permission_classes = [IsAuthenticated]
-    queryset = Lead.objects.all()  # ✅ ADD THIS LINE - This fixes the error!
+    queryset = Lead.objects.all()
     
     def get_queryset(self):
         user = self.request.user
-        queryset = Lead.objects.all()
+        
+        # Base queryset with optimizations
+        queryset = Lead.objects.select_related(
+            'form', 'affiliate', 'affiliate__user'
+        ).prefetch_related('lead_notes')
         
         # Filter by user role
         if user.user_type == 'admin':
-            queryset = Lead.objects.all()
-        elif user.user_type == 'affiliate':
-            queryset = Lead.objects.filter(affiliate__user=user)
+            # Admins see all leads
+            queryset = queryset.all()
         elif user.user_type == 'operations':
-            queryset = Lead.objects.all()
+            # Operations see all leads
+            queryset = queryset.all()
         else:
             queryset = Lead.objects.none()
         
@@ -53,8 +57,12 @@ class LeadViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(utm_source=utm_source)
         
         affiliate_code = self.request.query_params.get('affiliate')
-        if affiliate_code:
+        if affiliate_code and user.user_type in ['admin', 'operations']:
             queryset = queryset.filter(affiliate__affiliate_code=affiliate_code)
+        
+        form_id = self.request.query_params.get('form')
+        if form_id:
+            queryset = queryset.filter(form__id=form_id)
         
         date_range = self.request.query_params.get('date_range')
         if date_range:
@@ -73,11 +81,57 @@ class LeadViewSet(viewsets.ModelViewSet):
         
         return queryset.order_by('-created_at')
     
+    def update(self, request, *args, **kwargs):
+        """Update lead - with affiliate restrictions"""
+        instance = self.get_object()
+        user = request.user
+        
+        # Check if affiliate can only update their own leads
+        if user.user_type == 'affiliate':
+            try:
+                affiliate = Affiliate.objects.get(user=user)
+                if instance.affiliate != affiliate:
+                    return Response(
+                        {'error': 'You can only update your own leads'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            except Affiliate.DoesNotExist:
+                return Response(
+                    {'error': 'Affiliate profile not found'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
+        # Allow status updates for affiliates and operations
+        allowed_updates = ['status', 'notes']
+        if user.user_type == 'affiliate':
+            # Affiliates can only update status and notes
+            filtered_data = {k: v for k, v in request.data.items() if k in allowed_updates}
+            request._full_data = filtered_data
+        
+        return super().update(request, *args, **kwargs)
+    
     @action(detail=True, methods=['post'])
     def add_note(self, request, pk=None):
-        """Add a note to a lead"""
+        """Add a note to a lead - with affiliate restrictions"""
         try:
             lead = self.get_object()
+            user = request.user
+            
+            # Check if affiliate can only add notes to their own leads
+            if user.user_type == 'affiliate':
+                try:
+                    affiliate = Affiliate.objects.get(user=user)
+                    if lead.affiliate != affiliate:
+                        return Response(
+                            {'error': 'You can only add notes to your own leads'}, 
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                except Affiliate.DoesNotExist:
+                    return Response(
+                        {'error': 'Affiliate profile not found'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
             note_text = request.data.get('note', '').strip()
             
             if not note_text:
@@ -96,28 +150,48 @@ class LeadViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['get'])
     def notes(self, request, pk=None):
-        """Get all notes for a lead"""
+        """Get all notes for a lead - with affiliate restrictions"""
         try:
             lead = self.get_object()
+            user = request.user
+            
+            # Check if affiliate can only view notes for their own leads
+            if user.user_type == 'affiliate':
+                try:
+                    affiliate = Affiliate.objects.get(user=user)
+                    if lead.affiliate != affiliate:
+                        return Response(
+                            {'error': 'You can only view notes for your own leads'}, 
+                            status=status.HTTP_403_FORBIDDEN
+                        )
+                except Affiliate.DoesNotExist:
+                    return Response(
+                        {'error': 'Affiliate profile not found'}, 
+                        status=status.HTTP_403_FORBIDDEN
+                    )
+            
             notes = lead.lead_notes.all().order_by('-created_at')
             return Response(LeadNoteSerializer(notes, many=True).data)
         except Exception as e:
             logger.error(f"Error getting notes: {e}")
             return Response({'error': str(e)}, status=500)
 
-# Keep your existing ExportLeadsView and LeadStatsView classes unchanged
 class ExportLeadsView(APIView):
     permission_classes = [IsAuthenticated]
     
     def get(self, request):
         try:
-            # Get filtered leads based on query parameters
+            # Get filtered leads based on query parameters and user role
             user = request.user
-            queryset = Lead.objects.all()
+            queryset = Lead.objects.select_related('form', 'affiliate')
             
             # Apply role-based filtering
             if user.user_type == 'affiliate':
-                queryset = queryset.filter(affiliate__user=user)
+                try:
+                    affiliate = Affiliate.objects.get(user=user)
+                    queryset = queryset.filter(affiliate=affiliate)
+                except Affiliate.DoesNotExist:
+                    queryset = Lead.objects.none()
             
             # Apply search and filters
             search = request.query_params.get('search')
@@ -134,6 +208,10 @@ class ExportLeadsView(APIView):
             utm_source = request.query_params.get('utm_source')
             if utm_source:
                 queryset = queryset.filter(utm_source=utm_source)
+            
+            form_id = request.query_params.get('form')
+            if form_id:
+                queryset = queryset.filter(form__id=form_id)
             
             # Convert to DataFrame
             data = []
@@ -168,7 +246,17 @@ class ExportLeadsView(APIView):
             response = HttpResponse(
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
-            filename = f"leads_export_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            
+            # Include affiliate code in filename if user is affiliate
+            filename_suffix = ""
+            if user.user_type == 'affiliate':
+                try:
+                    affiliate = Affiliate.objects.get(user=user)
+                    filename_suffix = f"_{affiliate.affiliate_code}"
+                except:
+                    pass
+            
+            filename = f"leads_export{filename_suffix}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
             df.to_excel(response, index=False, engine='openpyxl')
@@ -189,7 +277,11 @@ class LeadStatsView(APIView):
             
             # Apply role-based filtering
             if user.user_type == 'affiliate':
-                queryset = queryset.filter(affiliate__user=user)
+                try:
+                    affiliate = Affiliate.objects.get(user=user)
+                    queryset = queryset.filter(affiliate=affiliate)
+                except Affiliate.DoesNotExist:
+                    queryset = Lead.objects.none()
             
             # Calculate statistics
             total_leads = queryset.count()
@@ -224,6 +316,24 @@ class LeadStatsView(APIView):
                 count=Count('id')
             ).order_by('-count')[:10]
             
+            # Form performance (only if user has access to multiple forms)
+            form_performance = []
+            if user.user_type in ['admin', 'operations']:
+                form_performance = queryset.values('form__name').annotate(
+                    count=Count('id')
+                ).order_by('-count')[:10]
+            elif user.user_type == 'affiliate':
+                # Show form performance for affiliate's assigned forms
+                try:
+                    affiliate = Affiliate.objects.get(user=user)
+                    form_performance = queryset.filter(
+                        form__in=affiliate.assigned_forms.all()
+                    ).values('form__name').annotate(
+                        count=Count('id')
+                    ).order_by('-count')[:10]
+                except:
+                    pass
+            
             # Daily submissions for the last 30 days
             daily_data = []
             for i in range(30):
@@ -234,7 +344,7 @@ class LeadStatsView(APIView):
                     'submissions': count
                 })
             
-            return Response({
+            response_data = {
                 'total_leads': total_leads,
                 'new_leads': new_leads,
                 'qualified_leads': qualified_leads,
@@ -245,9 +355,32 @@ class LeadStatsView(APIView):
                 'recent_leads': recent_leads,
                 'growth_rate': round(growth_rate, 2),
                 'top_sources': list(top_sources),
+                'form_performance': list(form_performance),
                 'daily_data': daily_data[::-1],  # Reverse for chronological order
-            })
+                'user_type': user.user_type
+            }
+            
+            # Add affiliate-specific data
+            if user.user_type == 'affiliate':
+                try:
+                    affiliate = Affiliate.objects.get(user=user)
+                    response_data.update({
+                        'affiliate_code': affiliate.affiliate_code,
+                        'assigned_forms_count': affiliate.assigned_forms.filter(is_active=True).count(),
+                        'conversion_rate': affiliate.conversion_rate
+                    })
+                except:
+                    pass
+            
+            return Response(response_data)
             
         except Exception as e:
             logger.error(f"Stats error: {e}")
-            return Response({'error': str(e)}, status=500)
+            return Response({'error': str(e)}, status=500)user_type == 'affiliate':
+            # Affiliates only see leads they generated
+            try:
+                affiliate = Affiliate.objects.get(user=user)
+                queryset = queryset.filter(affiliate=affiliate)
+            except Affiliate.DoesNotExist:
+                queryset = Lead.objects.none()
+        elif user.
