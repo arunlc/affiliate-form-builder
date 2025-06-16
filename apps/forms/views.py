@@ -95,7 +95,7 @@ class FormViewSet(viewsets.ModelViewSet):
                     order=field_data.get('order', 0)
                 )
     
-@action(detail=True, methods=['get'])
+    @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
         """Get comprehensive form statistics with REAL data"""
         try:
