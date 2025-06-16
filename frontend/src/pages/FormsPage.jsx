@@ -21,12 +21,14 @@ import {
   FormStatsModal 
 } from '../components/forms'
 import FormsTable from '../components/forms/FormsTable'
+import FormLeadsModal from '../components/forms/FormLeadsModal'
 
 export default function FormsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedForm, setSelectedForm] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false)
+  const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false)
   const [editingForm, setEditingForm] = useState(null)
   const [notification, setNotification] = useState(null)
   
@@ -190,8 +192,8 @@ export default function FormsPage() {
   }
 
   const handleViewEntries = (form) => {
-    // Navigate to leads page with form filter
-    window.location.href = `/leads?form=${form.id}`
+    setSelectedForm(form)
+    setIsLeadsModalOpen(true)
   }
 
   const handleToggleStatus = (form) => {
@@ -481,6 +483,15 @@ export default function FormsPage() {
           isOpen={isStatsModalOpen}
           onClose={() => {
             setIsStatsModalOpen(false)
+            setSelectedForm(null)
+          }}
+          form={selectedForm}
+        />
+
+        <FormLeadsModal
+          isOpen={isLeadsModalOpen}
+          onClose={() => {
+            setIsLeadsModalOpen(false)
             setSelectedForm(null)
           }}
           form={selectedForm}
