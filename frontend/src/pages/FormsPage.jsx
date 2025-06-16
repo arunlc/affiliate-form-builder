@@ -1,4 +1,4 @@
-// frontend/src/pages/FormsPage.jsx - Updated with new components
+// frontend/src/pages/FormsPage.jsx - Updated with Table Layout
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
@@ -10,16 +10,17 @@ import {
   AlertCircle,
   CheckCircle,
   BarChart3,
-  Users
+  Users,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
-// Import our new form components
+// Import our new components
 import { 
   FormModal, 
-  FormCard, 
-  FormStatsModal, 
-  FormFieldsPreview 
+  FormStatsModal 
 } from '../components/forms'
+import FormsTable from '../components/forms/FormsTable'
 
 export default function FormsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -28,15 +29,35 @@ export default function FormsPage() {
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false)
   const [editingForm, setEditingForm] = useState(null)
   const [notification, setNotification] = useState(null)
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const [pageSize] = useState(25)
+  
+  // Sorting state
+  const [sortBy, setSortBy] = useState('created_at')
+  const [sortOrder, setSortOrder] = useState('desc')
 
   const queryClient = useQueryClient()
 
-  // Fetch forms
+  // Fetch forms with pagination and sorting
   const { data: formsData, isLoading, error } = useQuery(
-    'forms', 
-    formsAPI.getForms,
+    ['forms', { 
+      page: currentPage, 
+      pageSize, 
+      search: searchTerm, 
+      sortBy, 
+      sortOrder 
+    }], 
+    () => formsAPI.getForms({
+      page: currentPage,
+      page_size: pageSize,
+      search: searchTerm,
+      ordering: sortOrder === 'desc' ? `-${sortBy}` : sortBy
+    }),
     {
       retry: 1,
+      keepPreviousData: true, // Keep previous data while loading new page
       onError: (error) => {
         console.error('Forms fetch error:', error)
         setNotification({
@@ -47,8 +68,10 @@ export default function FormsPage() {
     }
   )
 
-  // Extract forms from response
+  // Extract forms and pagination info
   const forms = formsData?.data?.results || []
+  const totalCount = formsData?.data?.count || 0
+  const totalPages = Math.ceil(totalCount / pageSize)
 
   // Create/Update form mutation
   const saveFormMutation = useMutation(
@@ -121,6 +144,23 @@ export default function FormsPage() {
     }
   )
 
+  // Toggle form status mutation
+  const toggleStatusMutation = useMutation(
+    ({ formId, isActive }) => formsAPI.updateForm(formId, { is_active: isActive }),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('forms')
+      },
+      onError: (error) => {
+        console.error('Toggle status error:', error)
+        setNotification({
+          type: 'error',
+          message: 'Failed to update form status.'
+        })
+      }
+    }
+  )
+
   // Event handlers
   const handleCreateForm = () => {
     setEditingForm(null)
@@ -149,15 +189,57 @@ export default function FormsPage() {
     setIsStatsModalOpen(true)
   }
 
+  const handleViewEntries = (form) => {
+    // Navigate to leads page with form filter
+    window.location.href = `/leads?form=${form.id}`
+  }
+
+  const handleToggleStatus = (form) => {
+    toggleStatusMutation.mutate({
+      formId: form.id,
+      isActive: !form.is_active
+    })
+  }
+
   const handleSaveForm = (formData) => {
     saveFormMutation.mutate(formData)
   }
 
-  // Filter forms
-  const filteredForms = forms.filter(form => 
-    form.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    form.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const handleSort = (column, order) => {
+    setSortBy(column)
+    setSortOrder(order)
+    setCurrentPage(1) // Reset to first page when sorting
+  }
+
+  const handleSearch = (value) => {
+    setSearchTerm(value)
+    setCurrentPage(1) // Reset to first page when searching
+  }
+
+  // Pagination handlers
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+  }
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1)
+    }
+  }
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1)
+    }
+  }
+
+  // Calculate stats for summary cards
+  const stats = {
+    total: totalCount,
+    active: forms.filter(f => f.is_active).length,
+    totalFields: forms.reduce((sum, form) => sum + (form.fields?.length || 0), 0),
+    leadCapture: forms.filter(f => f.form_type === 'lead_capture').length
+  }
 
   // Auto-hide notifications
   React.useEffect(() => {
@@ -195,7 +277,7 @@ export default function FormsPage() {
                 <FileText className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">{forms.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
                 <p className="text-sm text-gray-600">Total Forms</p>
               </div>
             </div>
@@ -207,9 +289,7 @@ export default function FormsPage() {
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {forms.filter(f => f.is_active).length}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
                 <p className="text-sm text-gray-600">Active Forms</p>
               </div>
             </div>
@@ -221,9 +301,7 @@ export default function FormsPage() {
                 <Users className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {forms.reduce((sum, form) => sum + (form.fields?.length || 0), 0)}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{stats.totalFields}</p>
                 <p className="text-sm text-gray-600">Total Fields</p>
               </div>
             </div>
@@ -235,16 +313,14 @@ export default function FormsPage() {
                 <BarChart3 className="h-6 w-6 text-orange-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
-                  {forms.filter(f => f.form_type === 'lead_capture').length}
-                </p>
+                <p className="text-2xl font-bold text-gray-900">{stats.leadCapture}</p>
                 <p className="text-sm text-gray-600">Lead Capture</p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Search and Filters */}
+        {/* Search and Results Count */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <div className="relative flex-1 max-w-md">
@@ -253,25 +329,15 @@ export default function FormsPage() {
                 type="text"
                 placeholder="Search forms..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearch(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="text-sm text-gray-600">
-              {filteredForms.length} forms found
+              Showing {((currentPage - 1) * pageSize) + 1}-{Math.min(currentPage * pageSize, totalCount)} of {totalCount} forms
             </div>
           </div>
         </div>
-
-        {/* Loading State */}
-        {isLoading && (
-          <div className="flex items-center justify-center min-h-[300px]">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-gray-600">Loading forms...</p>
-            </div>
-          </div>
-        )}
 
         {/* Error State */}
         {error && (
@@ -294,54 +360,108 @@ export default function FormsPage() {
           </div>
         )}
 
+        {/* Forms Table */}
+        {!error && (
+          <FormsTable
+            forms={forms}
+            loading={isLoading}
+            onEdit={handleEditForm}
+            onDelete={handleDeleteForm}
+            onDuplicate={handleDuplicateForm}
+            onViewStats={handleViewStats}
+            onViewEntries={handleViewEntries}
+            onToggleStatus={handleToggleStatus}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSort={handleSort}
+          />
+        )}
+
+        {/* Pagination */}
+        {!error && !isLoading && totalPages > 1 && (
+          <div className="bg-white rounded-xl border border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                  className="flex items-center px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="h-4 w-4 mr-1" />
+                  Previous
+                </button>
+                
+                <div className="flex items-center space-x-1">
+                  {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                    const page = i + Math.max(1, currentPage - 2)
+                    if (page > totalPages) return null
+                    
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`px-3 py-2 text-sm rounded-lg ${
+                          page === currentPage
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-500 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  })}
+                </div>
+                
+                <button
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                  className="flex items-center px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight className="h-4 w-4 ml-1" />
+                </button>
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                Page {currentPage} of {totalPages}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Empty State */}
-        {!isLoading && !error && filteredForms.length === 0 && forms.length === 0 && (
+        {!error && !isLoading && forms.length === 0 && (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
-            <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-medium text-gray-900 mb-2">No forms found</h3>
-            <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-              You don't have any forms yet. Create your first lead capture form to start collecting leads.
-            </p>
-            <button
-              onClick={handleCreateForm}
-              className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Create Your First Form
-            </button>
-          </div>
-        )}
-
-        {/* No Search Results */}
-        {!isLoading && !error && filteredForms.length === 0 && forms.length > 0 && (
-          <div className="text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
-            <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No forms match your search</h3>
-            <p className="text-gray-600 mb-4">
-              Try adjusting your search criteria or clear the search to see all forms.
-            </p>
-            <button
-              onClick={() => setSearchTerm('')}
-              className="text-blue-600 hover:text-blue-700 font-medium"
-            >
-              Clear search
-            </button>
-          </div>
-        )}
-
-        {/* Forms Grid */}
-        {!isLoading && !error && filteredForms.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredForms.map((form) => (
-              <FormCard
-                key={form.id}
-                form={form}
-                onEdit={handleEditForm}
-                onDuplicate={handleDuplicateForm}
-                onDelete={handleDeleteForm}
-                onViewStats={handleViewStats}
-              />
-            ))}
+            {totalCount === 0 ? (
+              <>
+                <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-medium text-gray-900 mb-2">No forms found</h3>
+                <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                  You don't have any forms yet. Create your first lead capture form to start collecting leads.
+                </p>
+                <button
+                  onClick={handleCreateForm}
+                  className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Your First Form
+                </button>
+              </>
+            ) : (
+              <>
+                <Search className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No forms match your search</h3>
+                <p className="text-gray-600 mb-4">
+                  Try adjusting your search criteria or clear the search to see all forms.
+                </p>
+                <button
+                  onClick={() => handleSearch('')}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Clear search
+                </button>
+              </>
+            )}
           </div>
         )}
 
