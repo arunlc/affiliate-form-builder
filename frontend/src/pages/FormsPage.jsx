@@ -1,8 +1,9 @@
-// frontend/src/pages/FormsPage.jsx - Updated with Form Settings
+// frontend/src/pages/FormsPage.jsx - Updated with Role-Based Access
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
 import { formsAPI } from '../services/api'
+import { useAuth } from '../hooks/useAuth'
 import { 
   FileText, 
   Plus, 
@@ -12,27 +13,28 @@ import {
   BarChart3,
   Users,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Lock,
+  Eye
 } from 'lucide-react'
 
 // Import our components
 import { 
   FormModal, 
-  FormStatsModal 
+  FormStatsModal,
+  FormSettingsModal
 } from '../components/forms'
 import FormsTable from '../components/forms/FormsTable'
 import FormLeadsModal from '../components/forms/FormLeadsModal'
 
-// NEW: Import Form Settings Modal (we'll create this next)
-import FormSettingsModal from '../components/forms/FormSettingsModal'
-
 export default function FormsPage() {
+  const { user } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedForm, setSelectedForm] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false)
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false)
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false) // NEW
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false)
   const [editingForm, setEditingForm] = useState(null)
   const [notification, setNotification] = useState(null)
   
@@ -46,21 +48,37 @@ export default function FormsPage() {
 
   const queryClient = useQueryClient()
 
-  // Fetch forms with pagination and sorting
+  // Check user role
+  const isAdmin = user?.user_type === 'admin'
+  const isAffiliate = user?.user_type === 'affiliate'
+
+  // Fetch forms with role-based filtering
   const { data: formsData, isLoading, error } = useQuery(
     ['forms', { 
       page: currentPage, 
       pageSize, 
       search: searchTerm, 
       sortBy, 
-      sortOrder 
+      sortOrder,
+      userType: user?.user_type,
+      affiliateId: user?.affiliate_id
     }], 
-    () => formsAPI.getForms({
-      page: currentPage,
-      page_size: pageSize,
-      search: searchTerm,
-      ordering: sortOrder === 'desc' ? `-${sortBy}` : sortBy
-    }),
+    () => {
+      // Build query parameters based on user role
+      const params = {
+        page: currentPage,
+        page_size: pageSize,
+        search: searchTerm,
+        ordering: sortOrder === 'desc' ? `-${sortBy}` : sortBy
+      }
+
+      // For affiliates, add filter for assigned forms only
+      if (isAffiliate && user?.affiliate_id) {
+        params.affiliate = user.affiliate_id // This will filter forms assigned to this affiliate
+      }
+
+      return formsAPI.getForms(params)
+    },
     {
       retry: 1,
       keepPreviousData: true,
@@ -79,7 +97,7 @@ export default function FormsPage() {
   const totalCount = formsData?.data?.count || 0
   const totalPages = Math.ceil(totalCount / pageSize)
 
-  // Create/Update form mutation
+  // Create/Update form mutation (Admin only)
   const saveFormMutation = useMutation(
     (formData) => {
       if (editingForm) {
@@ -108,7 +126,7 @@ export default function FormsPage() {
     }
   )
 
-  // Delete form mutation
+  // Delete form mutation (Admin only)
   const deleteFormMutation = useMutation(
     (formId) => formsAPI.deleteForm(formId),
     {
@@ -129,7 +147,7 @@ export default function FormsPage() {
     }
   )
 
-  // Duplicate form mutation
+  // Duplicate form mutation (Admin only)
   const duplicateFormMutation = useMutation(
     (formId) => formsAPI.duplicateForm(formId),
     {
@@ -150,7 +168,7 @@ export default function FormsPage() {
     }
   )
 
-  // Toggle form status mutation
+  // Toggle form status mutation (Admin only)
   const toggleStatusMutation = useMutation(
     ({ formId, isActive }) => formsAPI.updateForm(formId, { is_active: isActive }),
     {
@@ -169,22 +187,50 @@ export default function FormsPage() {
 
   // Event handlers
   const handleCreateForm = () => {
+    if (!isAdmin) {
+      setNotification({
+        type: 'error',
+        message: 'Only administrators can create forms.'
+      })
+      return
+    }
     setEditingForm(null)
     setIsModalOpen(true)
   }
 
   const handleEditForm = (form) => {
+    if (!isAdmin) {
+      setNotification({
+        type: 'error',
+        message: 'Only administrators can edit forms.'
+      })
+      return
+    }
     setEditingForm(form)
     setIsModalOpen(true)
   }
 
   const handleDeleteForm = (form) => {
+    if (!isAdmin) {
+      setNotification({
+        type: 'error',
+        message: 'Only administrators can delete forms.'
+      })
+      return
+    }
     if (window.confirm(`Are you sure you want to delete "${form.name}"? This action cannot be undone.`)) {
       deleteFormMutation.mutate(form.id)
     }
   }
 
   const handleDuplicateForm = (form) => {
+    if (!isAdmin) {
+      setNotification({
+        type: 'error',
+        message: 'Only administrators can duplicate forms.'
+      })
+      return
+    }
     if (window.confirm(`Create a copy of "${form.name}"?`)) {
       duplicateFormMutation.mutate(form.id)
     }
@@ -201,13 +247,19 @@ export default function FormsPage() {
   }
 
   const handleToggleStatus = (form) => {
+    if (!isAdmin) {
+      setNotification({
+        type: 'error',
+        message: 'Only administrators can change form status.'
+      })
+      return
+    }
     toggleStatusMutation.mutate({
       formId: form.id,
       isActive: !form.is_active
     })
   }
 
-  // NEW: Form Settings Handler
   const handleFormSettings = (form) => {
     setSelectedForm(form)
     setIsSettingsModalOpen(true)
@@ -267,21 +319,48 @@ export default function FormsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Forms Management</h1>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {isAffiliate ? 'My Assigned Forms' : 'Forms Management'}
+            </h1>
             <p className="text-gray-600 mt-1">
-              Create and manage your embeddable lead capture forms
+              {isAffiliate 
+                ? 'Forms you can promote with your affiliate tracking'
+                : 'Create and manage your embeddable lead capture forms'
+              }
             </p>
           </div>
-          <button
-            onClick={handleCreateForm}
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Create New Form
-          </button>
+          
+          {/* Create button only for admins */}
+          {isAdmin && (
+            <button
+              onClick={handleCreateForm}
+              className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Create New Form
+            </button>
+          )}
+
+          {/* Info for affiliates */}
+          {isAffiliate && (
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <div className="flex items-start">
+                <Eye className="h-5 w-5 text-blue-600 mr-2 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900">Your Affiliate Code</h4>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Code: <span className="font-mono bg-blue-100 px-1 rounded">{user.affiliate_id}</span>
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Click "Form Settings" on any form to get your tracking URLs
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Stats Summary */}
+        {/* Stats Summary - Updated labels for affiliates */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-6 border border-gray-200">
             <div className="flex items-center">
@@ -290,7 +369,9 @@ export default function FormsPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-sm text-gray-600">Total Forms</p>
+                <p className="text-sm text-gray-600">
+                  {isAffiliate ? 'Assigned Forms' : 'Total Forms'}
+                </p>
               </div>
             </div>
           </div>
@@ -372,21 +453,22 @@ export default function FormsPage() {
           </div>
         )}
 
-        {/* Forms Table */}
+        {/* Forms Table - Role-based props */}
         {!error && (
           <FormsTable
             forms={forms}
             loading={isLoading}
-            onEdit={handleEditForm}
-            onDelete={handleDeleteForm}
-            onDuplicate={handleDuplicateForm}
+            onEdit={isAdmin ? handleEditForm : null}
+            onDelete={isAdmin ? handleDeleteForm : null}
+            onDuplicate={isAdmin ? handleDuplicateForm : null}
             onViewStats={handleViewStats}
             onViewEntries={handleViewEntries}
-            onToggleStatus={handleToggleStatus}
+            onToggleStatus={isAdmin ? handleToggleStatus : null}
             onFormSettings={handleFormSettings}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSort={handleSort}
+            isAffiliate={isAffiliate}
           />
         )}
 
@@ -442,23 +524,35 @@ export default function FormsPage() {
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Empty State - Role-specific */}
         {!error && !isLoading && forms.length === 0 && (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
             {totalCount === 0 ? (
               <>
-                <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-medium text-gray-900 mb-2">No forms found</h3>
-                <p className="text-gray-600 mb-6 max-w-sm mx-auto">
-                  You don't have any forms yet. Create your first lead capture form to start collecting leads.
-                </p>
-                <button
-                  onClick={handleCreateForm}
-                  className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                >
-                  <Plus className="h-5 w-5 mr-2" />
-                  Create Your First Form
-                </button>
+                {isAffiliate ? (
+                  <>
+                    <Lock className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-medium text-gray-900 mb-2">No forms assigned</h3>
+                    <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                      You haven't been assigned any forms to promote yet. Contact your administrator to get access to forms.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-medium text-gray-900 mb-2">No forms found</h3>
+                    <p className="text-gray-600 mb-6 max-w-sm mx-auto">
+                      You don't have any forms yet. Create your first lead capture form to start collecting leads.
+                    </p>
+                    <button
+                      onClick={handleCreateForm}
+                      className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                    >
+                      <Plus className="h-5 w-5 mr-2" />
+                      Create Your First Form
+                    </button>
+                  </>
+                )}
               </>
             ) : (
               <>
@@ -478,17 +572,19 @@ export default function FormsPage() {
           </div>
         )}
 
-        {/* Modals */}
-        <FormModal
-          isOpen={isModalOpen}
-          onClose={() => {
-            setIsModalOpen(false)
-            setEditingForm(null)
-          }}
-          form={editingForm}
-          onSubmit={handleSaveForm}
-          loading={saveFormMutation.isLoading}
-        />
+        {/* Modals - Role-based access */}
+        {isAdmin && (
+          <FormModal
+            isOpen={isModalOpen}
+            onClose={() => {
+              setIsModalOpen(false)
+              setEditingForm(null)
+            }}
+            form={editingForm}
+            onSubmit={handleSaveForm}
+            loading={saveFormMutation.isLoading}
+          />
+        )}
 
         <FormStatsModal
           isOpen={isStatsModalOpen}
@@ -508,7 +604,6 @@ export default function FormsPage() {
           form={selectedForm}
         />
 
-        {/* NEW: Form Settings Modal */}
         <FormSettingsModal
           isOpen={isSettingsModalOpen}
           onClose={() => {
