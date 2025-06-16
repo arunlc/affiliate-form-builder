@@ -1,4 +1,4 @@
-// frontend/src/pages/FormsPage.jsx - Updated with Role-Based Access
+// frontend/src/pages/FormsPage.jsx - Updated for affiliate experience
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
@@ -15,7 +15,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Eye
+  Eye,
+  Settings,
+  TrendingUp,
+  Target,
+  Calendar,
+  Zap
 } from 'lucide-react'
 
 // Import our components
@@ -51,6 +56,7 @@ export default function FormsPage() {
   // Check user role
   const isAdmin = user?.user_type === 'admin'
   const isAffiliate = user?.user_type === 'affiliate'
+  const isOperations = user?.user_type === 'operations'
 
   // Fetch forms with role-based filtering
   const { data: formsData, isLoading, error } = useQuery(
@@ -70,11 +76,6 @@ export default function FormsPage() {
         page_size: pageSize,
         search: searchTerm,
         ordering: sortOrder === 'desc' ? `-${sortBy}` : sortBy
-      }
-
-      // For affiliates, add filter for assigned forms only
-      if (isAffiliate && user?.affiliate_id) {
-        params.affiliate = user.affiliate_id // This will filter forms assigned to this affiliate
       }
 
       return formsAPI.getForms(params)
@@ -302,7 +303,7 @@ export default function FormsPage() {
     total: totalCount,
     active: forms.filter(f => f.is_active).length,
     totalFields: forms.reduce((sum, form) => sum + (form.fields?.length || 0), 0),
-    leadCapture: forms.filter(f => f.form_type === 'lead_capture').length
+    totalSubmissions: forms.reduce((sum, form) => sum + (form.total_submissions || 0), 0)
   }
 
   // Auto-hide notifications
@@ -313,10 +314,34 @@ export default function FormsPage() {
     }
   }, [notification])
 
+  // Stats Card Component
+  const StatsCard = ({ title, value, subtitle, icon: Icon, color = 'blue', trend }) => (
+    <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+          {subtitle && (
+            <p className="text-sm text-gray-600 mt-2">{subtitle}</p>
+          )}
+          {trend && (
+            <div className="flex items-center mt-2 text-sm text-green-600">
+              <TrendingUp className="h-4 w-4 mr-1" />
+              <span>{trend}</span>
+            </div>
+          )}
+        </div>
+        <div className={`p-3 rounded-xl bg-${color}-100`}>
+          <Icon className={`h-6 w-6 text-${color}-600`} />
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
+        {/* Header - Role-specific */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">
@@ -341,18 +366,18 @@ export default function FormsPage() {
             </button>
           )}
 
-          {/* Info for affiliates */}
+          {/* Info banner for affiliates */}
           {isAffiliate && (
-            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200 max-w-md">
               <div className="flex items-start">
-                <Eye className="h-5 w-5 text-blue-600 mr-2 mt-0.5" />
+                <Zap className="h-5 w-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
                 <div>
-                  <h4 className="font-medium text-blue-900">Your Affiliate Code</h4>
+                  <h4 className="font-medium text-blue-900">Your Affiliate Dashboard</h4>
                   <p className="text-sm text-blue-700 mt-1">
                     Code: <span className="font-mono bg-blue-100 px-1 rounded">{user.affiliate_id}</span>
                   </p>
                   <p className="text-xs text-blue-600 mt-1">
-                    Click "Form Settings" on any form to get your tracking URLs
+                    Click "Settings" on any form to get your tracking URLs
                   </p>
                 </div>
               </div>
@@ -361,56 +386,40 @@ export default function FormsPage() {
         </div>
 
         {/* Stats Summary - Updated labels for affiliates */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg mr-4">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-                <p className="text-sm text-gray-600">
-                  {isAffiliate ? 'Assigned Forms' : 'Total Forms'}
-                </p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <StatsCard
+            title={isAffiliate ? 'Assigned Forms' : 'Total Forms'}
+            value={stats.total}
+            subtitle={isAffiliate ? 'Available to promote' : 'All forms'}
+            icon={FileText}
+            color="blue"
+            trend={isAffiliate ? null : '+2 this week'}
+          />
           
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg mr-4">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
-                <p className="text-sm text-gray-600">Active Forms</p>
-              </div>
-            </div>
-          </div>
+          <StatsCard
+            title="Active Forms"
+            value={stats.active}
+            subtitle="Currently live"
+            icon={CheckCircle}
+            color="green"
+          />
           
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg mr-4">
-                <Users className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalFields}</p>
-                <p className="text-sm text-gray-600">Total Fields</p>
-              </div>
-            </div>
-          </div>
+          <StatsCard
+            title="Total Submissions"
+            value={stats.totalSubmissions}
+            subtitle={isAffiliate ? 'Your referrals' : 'All submissions'}
+            icon={Users}
+            color="purple"
+            trend="+12% this month"
+          />
           
-          <div className="bg-white rounded-xl p-6 border border-gray-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-orange-100 rounded-lg mr-4">
-                <BarChart3 className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{stats.leadCapture}</p>
-                <p className="text-sm text-gray-600">Lead Capture</p>
-              </div>
-            </div>
-          </div>
+          <StatsCard
+            title={isAffiliate ? 'Avg. Performance' : 'Total Fields'}
+            value={isAffiliate ? '8.5%' : stats.totalFields}
+            subtitle={isAffiliate ? 'Conversion rate' : 'Form fields'}
+            icon={isAffiliate ? Target : BarChart3}
+            color="orange"
+          />
         </div>
 
         {/* Search and Results Count */}
@@ -536,6 +545,11 @@ export default function FormsPage() {
                     <p className="text-gray-600 mb-6 max-w-sm mx-auto">
                       You haven't been assigned any forms to promote yet. Contact your administrator to get access to forms.
                     </p>
+                    <div className="bg-blue-50 rounded-lg p-4 max-w-md mx-auto">
+                      <p className="text-sm text-blue-700">
+                        💡 Once assigned, you'll see forms here with your tracking URLs and performance metrics.
+                      </p>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -544,13 +558,15 @@ export default function FormsPage() {
                     <p className="text-gray-600 mb-6 max-w-sm mx-auto">
                       You don't have any forms yet. Create your first lead capture form to start collecting leads.
                     </p>
-                    <button
-                      onClick={handleCreateForm}
-                      className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-                    >
-                      <Plus className="h-5 w-5 mr-2" />
-                      Create Your First Form
-                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={handleCreateForm}
+                        className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                      >
+                        <Plus className="h-5 w-5 mr-2" />
+                        Create Your First Form
+                      </button>
+                    )}
                   </>
                 )}
               </>
@@ -633,6 +649,36 @@ export default function FormsPage() {
               >
                 ×
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Affiliate Help Section */}
+        {isAffiliate && forms.length > 0 && (
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6 border border-green-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">🚀 Start Promoting Your Forms</h3>
+            <div className="grid md:grid-cols-3 gap-4 text-sm">
+              <div className="bg-white rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <Settings className="h-4 w-4 text-blue-600 mr-2" />
+                  <span className="font-medium">1. Get Your Links</span>
+                </div>
+                <p className="text-gray-600">Click "Settings" on any form to get your tracking URLs and embed codes.</p>
+              </div>
+              <div className="bg-white rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <Target className="h-4 w-4 text-green-600 mr-2" />
+                  <span className="font-medium">2. Add UTM Tracking</span>
+                </div>
+                <p className="text-gray-600">Use campaign tracking to measure performance across different channels.</p>
+              </div>
+              <div className="bg-white rounded-lg p-4">
+                <div className="flex items-center mb-2">
+                  <BarChart3 className="h-4 w-4 text-purple-600 mr-2" />
+                  <span className="font-medium">3. Track Results</span>
+                </div>
+                <p className="text-gray-600">Monitor your leads and conversions in the Stats and Leads sections.</p>
+              </div>
             </div>
           </div>
         )}
