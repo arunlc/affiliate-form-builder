@@ -8,7 +8,8 @@ import {
   Trash2, 
   BarChart3,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Settings
 } from 'lucide-react'
 
 const FormsTable = ({ 
@@ -20,6 +21,7 @@ const FormsTable = ({
   onViewStats,
   onViewEntries,
   onToggleStatus,
+  onFormSettings,
   sortBy,
   sortOrder,
   onSort
@@ -112,6 +114,19 @@ const FormsTable = ({
               <Eye className="h-4 w-4 mr-3" />
               All Entries
             </button>
+            
+            {/* NEW: Form Settings Option */}
+            <button
+              onClick={() => {
+                onFormSettings(form)
+                setOpenDropdown(null)
+              }}
+              className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              <Settings className="h-4 w-4 mr-3" />
+              Form Settings
+            </button>
+            
             <button
               onClick={() => {
                 onDuplicate(form)
