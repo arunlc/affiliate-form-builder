@@ -1,8 +1,8 @@
-// frontend/src/pages/AffiliatesPage.jsx - Complete Implementation
+// frontend/src/pages/AffiliatesPage.jsx - New Table View with Form Assignment
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
-import { affiliatesAPI } from '../services/api'
+import { affiliatesAPI, formsAPI } from '../services/api'
 import { 
   Users, 
   Plus, 
@@ -10,289 +10,25 @@ import {
   Eye, 
   Edit, 
   Trash2, 
-  ExternalLink,
-  BarChart3,
+  Settings,
   TrendingUp,
   DollarSign,
-  Copy,
-  CheckCircle,
-  AlertCircle,
-  Save,
-  X,
-  Mail,
-  Phone,
-  Globe,
-  Building,
-  Calendar,
   Activity,
   Target,
   Award,
-  Link as LinkIcon,
-  Download
+  CheckCircle,
+  AlertCircle,
+  X,
+  Save,
+  ChevronDown,
+  ChevronUp,
+  Building,
+  Globe,
+  Mail,
+  Phone
 } from 'lucide-react'
 
-// Affiliate Stats Modal
-const AffiliateStatsModal = ({ isOpen, onClose, affiliate }) => {
-  const [statsData, setStatsData] = useState(null)
-  const [loading, setLoading] = useState(false)
-  
-  React.useEffect(() => {
-    if (isOpen && affiliate && !statsData) {
-      loadStats()
-    }
-  }, [isOpen, affiliate])
-
-  const loadStats = async () => {
-    if (!affiliate) return
-    setLoading(true)
-    try {
-      const response = await affiliatesAPI.getAffiliateStats(affiliate.id)
-      setStatsData(response.data)
-    } catch (error) {
-      console.error('Failed to load stats:', error)
-      setStatsData({ error: 'Failed to load statistics' })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-900">Affiliate Performance</h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <p className="text-gray-600 mt-1">{affiliate?.user_name} ({affiliate?.affiliate_code})</p>
-        </div>
-        
-        <div className="p-6">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="ml-3 text-gray-600">Loading analytics...</span>
-            </div>
-          ) : statsData?.error ? (
-            <div className="text-center py-12">
-              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-              <p className="text-red-600">{statsData.error}</p>
-            </div>
-          ) : statsData ? (
-            <div className="space-y-6">
-              {/* Key Metrics */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="bg-blue-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-700">{statsData.total_leads || 0}</div>
-                  <div className="text-sm text-blue-600">Total Leads</div>
-                </div>
-                <div className="bg-green-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-green-700">{statsData.total_conversions || 0}</div>
-                  <div className="text-sm text-green-600">Conversions</div>
-                </div>
-                <div className="bg-purple-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-700">{statsData.conversion_rate || 0}%</div>
-                  <div className="text-sm text-purple-600">Conversion Rate</div>
-                </div>
-                <div className="bg-orange-50 rounded-xl p-4 text-center">
-                  <div className="text-2xl font-bold text-orange-700">${statsData.estimated_revenue || 0}</div>
-                  <div className="text-sm text-orange-600">Est. Revenue</div>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="bg-gray-50 rounded-xl p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">Recent Performance</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">This Month</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Leads:</span>
-                        <span className="font-medium">{statsData.monthly_leads || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Conversions:</span>
-                        <span className="font-medium">{statsData.monthly_conversions || 0}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Last 7 Days</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Leads:</span>
-                        <span className="font-medium">{statsData.weekly_leads || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm text-gray-600">Conversions:</span>
-                        <span className="font-medium">{statsData.weekly_conversions || 0}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-gray-500">
-              No analytics data available
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Affiliate Card Component
-const AffiliateCard = ({ affiliate, onEdit, onDelete, onViewStats, onViewLeads }) => {
-  const [copying, setCopying] = useState(false)
-  
-  const trackingLink = `${window.location.origin}/forms?affiliate=${affiliate.affiliate_code}&utm_source=affiliate&utm_medium=referral`
-  
-  const copyTrackingLink = async () => {
-    setCopying(true)
-    try {
-      await navigator.clipboard.writeText(trackingLink)
-      setTimeout(() => setCopying(false), 2000)
-    } catch (err) {
-      setCopying(false)
-    }
-  }
-
-  return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-200">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-            <Users className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">{affiliate.user_name}</h3>
-            <p className="text-sm text-gray-600">Code: {affiliate.affiliate_code}</p>
-          </div>
-        </div>
-        
-        <div className="flex flex-col items-end space-y-2">
-          <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-            affiliate.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-          }`}>
-            {affiliate.is_active ? 'Active' : 'Inactive'}
-          </span>
-        </div>
-      </div>
-
-      {/* Company Info */}
-      {(affiliate.company_name || affiliate.website) && (
-        <div className="mb-4 space-y-2">
-          {affiliate.company_name && (
-            <div className="flex items-center text-sm text-gray-600">
-              <Building className="h-4 w-4 mr-2" />
-              <span>{affiliate.company_name}</span>
-            </div>
-          )}
-          {affiliate.website && (
-            <div className="flex items-center text-sm text-gray-600">
-              <Globe className="h-4 w-4 mr-2" />
-              <a 
-                href={affiliate.website} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-700 hover:underline"
-              >
-                {affiliate.website}
-              </a>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Performance Metrics */}
-      <div className="grid grid-cols-3 gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-        <div className="text-center">
-          <div className="text-lg font-bold text-blue-600">{affiliate.total_leads || 0}</div>
-          <div className="text-xs text-gray-600">Total Leads</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg font-bold text-green-600">{affiliate.total_conversions || 0}</div>
-          <div className="text-xs text-gray-600">Conversions</div>
-        </div>
-        <div className="text-center">
-          <div className="text-lg font-bold text-purple-600">{affiliate.conversion_rate?.toFixed(1) || 0}%</div>
-          <div className="text-xs text-gray-600">Conv. Rate</div>
-        </div>
-      </div>
-
-      {/* Tracking Link */}
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Tracking Link</label>
-        <div className="flex items-center space-x-2">
-          <div className="flex-1 bg-gray-50 rounded-lg p-2">
-            <code className="text-xs text-gray-700 break-all">{trackingLink}</code>
-          </div>
-          <button
-            onClick={copyTrackingLink}
-            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            title={copying ? "Copied!" : "Copy Link"}
-          >
-            {copying ? <CheckCircle className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => onViewStats(affiliate)}
-            className="flex items-center px-3 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors text-sm font-medium"
-          >
-            <BarChart3 className="h-4 w-4 mr-1" />
-            Stats
-          </button>
-          
-          <button
-            onClick={() => onViewLeads(affiliate)}
-            className="flex items-center px-3 py-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors text-sm font-medium"
-          >
-            <Eye className="h-4 w-4 mr-1" />
-            Leads
-          </button>
-        </div>
-        
-        <div className="flex items-center space-x-1">
-          <button
-            onClick={() => onEdit(affiliate)}
-            className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-            title="Edit Affiliate"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          
-          <button
-            onClick={() => onDelete(affiliate)}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Delete Affiliate"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-
-      {/* Join Date */}
-      <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-        Joined {new Date(affiliate.created_at).toLocaleDateString()}
-      </div>
-    </div>
-  )
-}
-
-// Create/Edit Affiliate Modal
+// Affiliate Modal Component
 const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     user_name: '',
@@ -303,13 +39,11 @@ const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
     phone: '',
     is_active: true
   })
-
   const [errors, setErrors] = useState({})
 
   React.useEffect(() => {
     if (isOpen) {
       if (affiliate) {
-        // Edit mode
         setFormData({
           user_name: affiliate.user_name || '',
           affiliate_code: affiliate.affiliate_code || '',
@@ -320,7 +54,6 @@ const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
           is_active: affiliate.is_active !== undefined ? affiliate.is_active : true
         })
       } else {
-        // Create mode
         setFormData({
           user_name: '',
           affiliate_code: generateAffiliateCode(),
@@ -520,57 +253,107 @@ const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
   )
 }
 
-// Stats Card Component
-const StatsCard = ({ title, value, subtitle, icon: Icon, color = 'blue', trend }) => (
-  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-        <p className="text-3xl font-bold text-gray-900">{value}</p>
-        {subtitle && (
-          <p className="text-sm text-gray-600 mt-2">{subtitle}</p>
-        )}
-        {trend && (
-          <div className="flex items-center mt-2 text-sm text-green-600">
-            <TrendingUp className="h-4 w-4 mr-1" />
-            <span>{trend}</span>
-          </div>
-        )}
-      </div>
-      <div className={`p-3 rounded-xl bg-${color}-100`}>
-        <Icon className={`h-6 w-6 text-${color}-600`} />
-      </div>
-    </div>
-  </div>
-)
+// Form Assignment Modal Component  
+const FormAssignmentModal = ({ isOpen, onClose, affiliate, assignedForms, onSaveAssignments }) => {
+  const [selectedForms, setSelectedForms] = useState([])
+  const [loading, setLoading] = useState(false)
 
-// Notification Toast
-const NotificationToast = ({ notification, onClose }) => {
+  // Fetch all forms
+  const { data: formsData } = useQuery('forms', () => formsAPI.getForms())
+  const forms = formsData?.data?.results || formsData?.data || []
+
   React.useEffect(() => {
-    if (notification) {
-      const timer = setTimeout(onClose, 5000)
-      return () => clearTimeout(timer)
+    if (isOpen && assignedForms) {
+      setSelectedForms(assignedForms.map(f => f.id))
     }
-  }, [notification, onClose])
+  }, [isOpen, assignedForms])
 
-  if (!notification) return null
+  const handleFormToggle = (formId) => {
+    setSelectedForms(prev => 
+      prev.includes(formId) 
+        ? prev.filter(id => id !== formId)
+        : [...prev, formId]
+    )
+  }
+
+  const handleSave = async () => {
+    setLoading(true)
+    try {
+      await onSaveAssignments(affiliate.id, selectedForms)
+      onClose()
+    } catch (error) {
+      console.error('Failed to save assignments:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (!isOpen || !affiliate) return null
 
   return (
-    <div className="fixed top-4 right-4 z-50">
-      <div className={`rounded-lg shadow-lg p-4 flex items-center space-x-3 ${
-        notification.type === 'success' 
-          ? 'bg-green-50 border border-green-200 text-green-800' 
-          : 'bg-red-50 border border-red-200 text-red-800'
-      }`}>
-        {notification.type === 'success' ? (
-          <CheckCircle className="h-5 w-5 text-green-600" />
-        ) : (
-          <AlertCircle className="h-5 w-5 text-red-600" />
-        )}
-        <span className="font-medium">{notification.message}</span>
-        <button onClick={onClose} className="ml-2">
-          <X className="h-4 w-4" />
-        </button>
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-hidden">
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-gray-900">Assign Forms</h2>
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <p className="text-gray-600 mt-1">{affiliate.user_name} ({affiliate.affiliate_code})</p>
+        </div>
+        
+        <div className="p-6 max-h-96 overflow-y-auto">
+          {forms.length > 0 ? (
+            <div className="space-y-3">
+              {forms.map(form => (
+                <div key={form.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedForms.includes(form.id)}
+                      onChange={() => handleFormToggle(form.id)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <div>
+                      <h4 className="font-medium text-gray-900">{form.name}</h4>
+                      <p className="text-sm text-gray-500">{form.description || 'No description'}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      form.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {form.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No forms available. Create some forms first.
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end space-x-3 p-6 bg-gray-50">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center disabled:opacity-50"
+          >
+            {loading && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>}
+            <Save className="h-4 w-4 mr-2" />
+            {loading ? 'Saving...' : 'Save Assignments'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -579,12 +362,15 @@ const NotificationToast = ({ notification, onClose }) => {
 // Main AffiliatesPage Component
 export default function AffiliatesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false)
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
   const [editingAffiliate, setEditingAffiliate] = useState(null)
   const [selectedAffiliate, setSelectedAffiliate] = useState(null)
+  const [assignedForms, setAssignedForms] = useState([])
   const [notification, setNotification] = useState(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [sortBy, setSortBy] = useState('created_at')
+  const [sortOrder, setSortOrder] = useState('desc')
 
   const queryClient = useQueryClient()
 
@@ -699,14 +485,26 @@ export default function AffiliatesPage() {
     }
   }
 
-  const handleViewStats = (affiliate) => {
+  const handleAssignForms = (affiliate) => {
     setSelectedAffiliate(affiliate)
-    setIsStatsModalOpen(true)
+    // TODO: Fetch assigned forms for this affiliate
+    setAssignedForms([]) // Placeholder
+    setIsAssignmentModalOpen(true)
   }
 
-  const handleViewLeads = (affiliate) => {
-    // Navigate to leads page with affiliate filter
-    window.location.href = `/leads?affiliate=${affiliate.affiliate_code}`
+  const handleSaveAssignments = async (affiliateId, formIds) => {
+    // TODO: Implement form assignment API call
+    console.log('Assign forms', formIds, 'to affiliate', affiliateId)
+    setNotification({
+      type: 'success',
+      message: 'Form assignments updated successfully!'
+    })
+  }
+
+  const handleSort = (column) => {
+    const newOrder = sortBy === column && sortOrder === 'asc' ? 'desc' : 'asc'
+    setSortBy(column)
+    setSortOrder(newOrder)
   }
 
   // Calculate stats
@@ -717,7 +515,28 @@ export default function AffiliatesPage() {
     totalConversions: affiliates.reduce((sum, a) => sum + (a.total_conversions || 0), 0)
   }
 
-  // Loading state
+  // Auto-hide notifications
+  React.useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [notification])
+
+  const SortableHeader = ({ column, children }) => (
+    <th 
+      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-50"
+      onClick={() => handleSort(column)}
+    >
+      <div className="flex items-center space-x-1">
+        <span>{children}</span>
+        {sortBy === column && (
+          sortOrder === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+        )}
+      </div>
+    </th>
+  )
+
   if (isLoading) {
     return (
       <Layout>
@@ -731,7 +550,6 @@ export default function AffiliatesPage() {
     )
   }
 
-  // Error state
   if (error) {
     return (
       <Layout>
@@ -777,42 +595,63 @@ export default function AffiliatesPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatsCard
-            title="Total Affiliates"
-            value={stats.total}
-            subtitle="Registered partners"
-            icon={Users}
-            color="blue"
-          />
-          <StatsCard
-            title="Active Affiliates"
-            value={stats.active}
-            subtitle="Currently active"
-            icon={Activity}
-            color="green"
-            trend="+5% this month"
-          />
-          <StatsCard
-            title="Total Leads"
-            value={stats.totalLeads}
-            subtitle="All affiliates"
-            icon={Target}
-            color="purple"
-          />
-          <StatsCard
-            title="Conversions"
-            value={stats.totalConversions}
-            subtitle="Successful referrals"
-            icon={Award}
-            color="orange"
-          />
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1">Total Affiliates</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
+                <p className="text-sm text-gray-600 mt-2">Registered partners</p>
+              </div>
+              <div className="p-3 rounded-xl bg-blue-100">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1">Active Affiliates</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.active}</p>
+                <p className="text-sm text-gray-600 mt-2">Currently active</p>
+              </div>
+              <div className="p-3 rounded-xl bg-green-100">
+                <Activity className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1">Total Leads</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.totalLeads}</p>
+                <p className="text-sm text-gray-600 mt-2">All affiliates</p>
+              </div>
+              <div className="p-3 rounded-xl bg-purple-100">
+                <Target className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 mb-1">Conversions</p>
+                <p className="text-3xl font-bold text-gray-900">{stats.totalConversions}</p>
+                <p className="text-sm text-gray-600 mt-2">Successful referrals</p>
+              </div>
+              <div className="p-3 rounded-xl bg-orange-100">
+                <Award className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Filters and Search */}
+        {/* Search and Filters */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
             <div className="flex flex-col sm:flex-row gap-4 items-center flex-1">
-              {/* Search */}
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
@@ -824,7 +663,6 @@ export default function AffiliatesPage() {
                 />
               </div>
 
-              {/* Status Filter */}
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -836,14 +674,13 @@ export default function AffiliatesPage() {
               </select>
             </div>
 
-            {/* Results Count */}
             <div className="text-sm text-gray-600">
               {filteredAffiliates.length} affiliates found
             </div>
           </div>
         </div>
 
-        {/* Affiliates Grid */}
+        {/* Affiliates Table */}
         {filteredAffiliates.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-gray-100">
             {affiliates.length === 0 ? (
@@ -884,17 +721,155 @@ export default function AffiliatesPage() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-            {filteredAffiliates.map((affiliate) => (
-              <AffiliateCard
-                key={affiliate.id}
-                affiliate={affiliate}
-                onEdit={handleEditAffiliate}
-                onDelete={handleDeleteAffiliate}
-                onViewStats={handleViewStats}
-                onViewLeads={handleViewLeads}
-              />
-            ))}
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <SortableHeader column="user_name">Affiliate</SortableHeader>
+                    <SortableHeader column="affiliate_code">Code</SortableHeader>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Contact
+                    </th>
+                    <SortableHeader column="total_leads">Leads</SortableHeader>
+                    <SortableHeader column="total_conversions">Conversions</SortableHeader>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Conv. Rate
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {filteredAffiliates.map((affiliate) => (
+                    <tr key={affiliate.id} className="hover:bg-gray-50 transition-colors">
+                      {/* Affiliate Info */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mr-3">
+                            <Users className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{affiliate.user_name}</div>
+                            {affiliate.company_name && (
+                              <div className="text-sm text-gray-500">{affiliate.company_name}</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Affiliate Code */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex px-2 py-1 text-xs font-mono bg-blue-100 text-blue-800 rounded">
+                          {affiliate.affiliate_code}
+                        </span>
+                      </td>
+
+                      {/* Contact Info */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="space-y-1">
+                          {affiliate.email && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Mail className="h-3 w-3 mr-1" />
+                              <span className="truncate max-w-32">{affiliate.email}</span>
+                            </div>
+                          )}
+                          {affiliate.phone && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Phone className="h-3 w-3 mr-1" />
+                              <span>{affiliate.phone}</span>
+                            </div>
+                          )}
+                          {affiliate.website && (
+                            <div className="flex items-center text-sm text-gray-600">
+                              <Globe className="h-3 w-3 mr-1" />
+                              <a 
+                                href={affiliate.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-700 truncate max-w-32"
+                              >
+                                Website
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Leads */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {affiliate.total_leads || 0}
+                      </td>
+
+                      {/* Conversions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {affiliate.total_conversions || 0}
+                      </td>
+
+                      {/* Conversion Rate */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {affiliate.conversion_rate?.toFixed(1) || 0}%
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <label className="flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={affiliate.is_active}
+                            onChange={() => {
+                              // TODO: Add toggle status functionality
+                              console.log('Toggle status for', affiliate.id)
+                            }}
+                            className="sr-only"
+                          />
+                          <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            affiliate.is_active ? 'bg-blue-600' : 'bg-gray-200'
+                          }`}>
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              affiliate.is_active ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </div>
+                        </label>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleAssignForms(affiliate)}
+                            className="inline-flex items-center px-3 py-1.5 border border-blue-300 text-xs font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors"
+                          >
+                            <Settings className="h-3 w-3 mr-1" />
+                            Assign Forms
+                          </button>
+                          
+                          <button
+                            onClick={() => handleEditAffiliate(affiliate)}
+                            className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                          >
+                            <Edit className="h-3 w-3 mr-1" />
+                            Edit
+                          </button>
+                          
+                          <button
+                            onClick={() => handleDeleteAffiliate(affiliate)}
+                            className="inline-flex items-center px-3 py-1.5 border border-red-300 text-xs font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 transition-colors"
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -910,20 +885,41 @@ export default function AffiliatesPage() {
           loading={createAffiliateMutation.isLoading || updateAffiliateMutation.isLoading}
         />
 
-        <AffiliateStatsModal
-          isOpen={isStatsModalOpen}
+        <FormAssignmentModal
+          isOpen={isAssignmentModalOpen}
           onClose={() => {
-            setIsStatsModalOpen(false)
+            setIsAssignmentModalOpen(false)
             setSelectedAffiliate(null)
+            setAssignedForms([])
           }}
           affiliate={selectedAffiliate}
+          assignedForms={assignedForms}
+          onSaveAssignments={handleSaveAssignments}
         />
 
         {/* Notification Toast */}
-        <NotificationToast
-          notification={notification}
-          onClose={() => setNotification(null)}
-        />
+        {notification && (
+          <div className="fixed top-4 right-4 z-50">
+            <div className={`rounded-lg shadow-lg p-4 flex items-center space-x-3 ${
+              notification.type === 'success' 
+                ? 'bg-green-50 border border-green-200 text-green-800' 
+                : 'bg-red-50 border border-red-200 text-red-800'
+            }`}>
+              {notification.type === 'success' ? (
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              ) : (
+                <AlertCircle className="h-5 w-5 text-red-600" />
+              )}
+              <span className="font-medium">{notification.message}</span>
+              <button 
+                onClick={() => setNotification(null)}
+                className="ml-2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )
