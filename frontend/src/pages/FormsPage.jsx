@@ -1,4 +1,4 @@
-// frontend/src/pages/FormsPage.jsx - Updated with Table Layout
+// frontend/src/pages/FormsPage.jsx - Updated with Form Settings
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
@@ -15,7 +15,7 @@ import {
   ChevronRight
 } from 'lucide-react'
 
-// Import our new components
+// Import our components
 import { 
   FormModal, 
   FormStatsModal 
@@ -23,12 +23,16 @@ import {
 import FormsTable from '../components/forms/FormsTable'
 import FormLeadsModal from '../components/forms/FormLeadsModal'
 
+// NEW: Import Form Settings Modal (we'll create this next)
+import FormSettingsModal from '../components/forms/FormSettingsModal'
+
 export default function FormsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedForm, setSelectedForm] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false)
   const [isLeadsModalOpen, setIsLeadsModalOpen] = useState(false)
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false) // NEW
   const [editingForm, setEditingForm] = useState(null)
   const [notification, setNotification] = useState(null)
   
@@ -59,7 +63,7 @@ export default function FormsPage() {
     }),
     {
       retry: 1,
-      keepPreviousData: true, // Keep previous data while loading new page
+      keepPreviousData: true,
       onError: (error) => {
         console.error('Forms fetch error:', error)
         setNotification({
@@ -203,6 +207,12 @@ export default function FormsPage() {
     })
   }
 
+  // NEW: Form Settings Handler
+  const handleFormSettings = (form) => {
+    setSelectedForm(form)
+    setIsSettingsModalOpen(true)
+  }
+
   const handleSaveForm = (formData) => {
     saveFormMutation.mutate(formData)
   }
@@ -210,12 +220,12 @@ export default function FormsPage() {
   const handleSort = (column, order) => {
     setSortBy(column)
     setSortOrder(order)
-    setCurrentPage(1) // Reset to first page when sorting
+    setCurrentPage(1)
   }
 
   const handleSearch = (value) => {
     setSearchTerm(value)
-    setCurrentPage(1) // Reset to first page when searching
+    setCurrentPage(1)
   }
 
   // Pagination handlers
@@ -373,6 +383,7 @@ export default function FormsPage() {
             onViewStats={handleViewStats}
             onViewEntries={handleViewEntries}
             onToggleStatus={handleToggleStatus}
+            onFormSettings={handleFormSettings}
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSort={handleSort}
@@ -492,6 +503,16 @@ export default function FormsPage() {
           isOpen={isLeadsModalOpen}
           onClose={() => {
             setIsLeadsModalOpen(false)
+            setSelectedForm(null)
+          }}
+          form={selectedForm}
+        />
+
+        {/* NEW: Form Settings Modal */}
+        <FormSettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => {
+            setIsSettingsModalOpen(false)
             setSelectedForm(null)
           }}
           form={selectedForm}
