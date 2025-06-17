@@ -52,23 +52,32 @@ for i in range(max_tries):
             raise
 "
 
-# Create migrations in proper dependency order
-echo "🗄️ Creating migrations..."
+# FIXED: Reset migrations to avoid dependency issues
+echo "🗄️ Resetting migrations..."
+find . -path "*/migrations/*.py" -not -name "__init__.py" -delete
+find . -path "*/migrations/*.pyc" -delete
 
-# Users first (other apps depend on it)
-python manage.py makemigrations users --empty --verbosity=2 || true
+# Create migrations in proper dependency order
+echo "🗄️ Creating migrations in proper order..."
+
+# 1. Users first (base model)
+echo "Creating users migrations..."
 python manage.py makemigrations users --verbosity=2
 
-# Core app
+# 2. Core app (no dependencies)
+echo "Creating core migrations..."
 python manage.py makemigrations core --verbosity=2
 
-# Forms app
+# 3. Forms app (depends on User)
+echo "Creating forms migrations..."
 python manage.py makemigrations forms --verbosity=2
 
-# Affiliates app (depends on forms)
+# 4. Affiliates app (depends on User and Forms)
+echo "Creating affiliates migrations..."
 python manage.py makemigrations affiliates --verbosity=2
 
-# Leads app (depends on forms and affiliates)
+# 5. Leads app (depends on User, Forms, and Affiliates)
+echo "Creating leads migrations..."
 python manage.py makemigrations leads --verbosity=2
 
 # Run all migrations
