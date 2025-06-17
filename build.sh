@@ -16,37 +16,32 @@ cd ..
 
 # Collect static files
 echo "📁 Collecting static files..."
-python manage.py collectstatic --no-input
+python manage.py collectstatic --noinput
 
-# For FRESH database - create migrations and migrate
-echo "🗄️ Creating and running migrations..."
+# Create migrations in proper dependency order
+echo "🗄️ Creating migrations..."
 
-# Remove any existing migration files to start fresh
-find apps/*/migrations -name "*.py" -not -name "__init__.py" -delete
-
-# Create migrations in dependency order
+# Users first (other apps depend on it)
 python manage.py makemigrations users
+
+# Core app
 python manage.py makemigrations core
+
+# Forms app
 python manage.py makemigrations forms
+
+# Affiliates app (depends on forms)
 python manage.py makemigrations affiliates
+
+# Leads app (depends on forms and affiliates)
 python manage.py makemigrations leads
 
-# Run migrations
+# Run all migrations
+echo "🗄️ Running migrations..."
 python manage.py migrate
 
-# Create tokens for auth
-echo "🔑 Setting up authentication..."
-python manage.py shell -c "
-from django.contrib.auth import get_user_model
-from rest_framework.authtoken.models import Token
-User = get_user_model()
-for user in User.objects.all():
-    Token.objects.get_or_create(user=user)
-    print(f'Token created for user: {user.username}')
-"
-
-# Create sample data
-echo "🌱 Creating sample data..."
+# Create superuser and sample data
+echo "🌱 Setting up initial data..."
 python seed_data_for_render.py
 
 echo "✅ Build completed successfully!"
