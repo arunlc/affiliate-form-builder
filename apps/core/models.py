@@ -1,4 +1,4 @@
-# apps/core/models.py
+# apps/core/models.py - FIXED VERSION
 from django.db import models
 
 class Setting(models.Model):
@@ -11,23 +11,23 @@ class Setting(models.Model):
     def __str__(self):
         return self.key
 
-# Analytics model temporarily disabled to avoid circular dependency
-# class Analytics(models.Model):
-#     form = models.ForeignKey('forms.Form', on_delete=models.CASCADE, related_name='analytics')
-#     date = models.DateField()
-#     views = models.PositiveIntegerField(default=0)
-#     submissions = models.PositiveIntegerField(default=0)
-#     conversions = models.PositiveIntegerField(default=0)
-#     
-#     class Meta:
-#         unique_together = ['form', 'date']
-#         ordering = ['-date']
-#     
-#     def __str__(self):
-#         return f"{self.form.name} - {self.date}"
-#     
-#     @property
-#     def conversion_rate(self):
-#         if self.views > 0:
-#             return (self.submissions / self.views) * 100
-#         return 0
+# Analytics model - will be added after form model is stable
+class Analytics(models.Model):
+    form = models.ForeignKey('forms.Form', on_delete=models.CASCADE, related_name='analytics')
+    date = models.DateField()
+    views = models.PositiveIntegerField(default=0)
+    submissions = models.PositiveIntegerField(default=0)
+    conversions = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        unique_together = ['form', 'date']
+        ordering = ['-date']
+    
+    def __str__(self):
+        return f"{self.form.name} - {self.date}"
+    
+    @property
+    def conversion_rate(self):
+        if self.views > 0:
+            return (self.submissions / self.views) * 100
+        return 0
