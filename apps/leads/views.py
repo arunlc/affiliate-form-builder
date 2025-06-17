@@ -1,4 +1,4 @@
-# apps/leads/views.py - Updated for affiliate filtering
+# apps/leads/views.py - VERSION WITHOUT PANDAS
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -11,7 +11,10 @@ from datetime import timedelta
 from .models import Lead, LeadNote
 from .serializers import LeadSerializer, LeadNoteSerializer
 from apps.affiliates.models import Affiliate
-import pandas as pd
+
+# Use openpyxl directly instead of pandas
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill
 import logging
 
 logger = logging.getLogger(__name__)
@@ -213,36 +216,75 @@ class ExportLeadsView(APIView):
             if form_id:
                 queryset = queryset.filter(form__id=form_id)
             
-            # Convert to DataFrame
-            data = []
-            for lead in queryset.order_by('-created_at'):
-                # Extract form data fields
-                form_data = lead.form_data or {}
-                row = {
-                    'Email': lead.email,
-                    'Name': lead.name,
-                    'Phone': lead.phone,
-                    'Form': lead.form.name,
-                    'Status': lead.get_status_display(),
-                    'Affiliate': lead.affiliate_code,
-                    'UTM Source': lead.utm_source,
-                    'UTM Medium': lead.utm_medium,
-                    'UTM Campaign': lead.utm_campaign,
-                    'Created': lead.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'Updated': lead.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'IP Address': lead.ip_address,
-                }
+            # Create Excel workbook using openpyxl (no pandas needed)
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Leads Export"
+            
+            # Define headers
+            headers = [
+                'Email', 'Name', 'Phone', 'Form', 'Status', 'Affiliate',
+                'UTM Source', 'UTM Medium', 'UTM Campaign', 'Created', 'Updated', 'IP Address'
+            ]
+            
+            # Style the header row
+            header_font = Font(bold=True)
+            header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+            
+            for col_num, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col_num)
+                cell.value = header
+                cell.font = header_font
+                cell.fill = header_fill
+            
+            # Add data rows
+            for row_num, lead in enumerate(queryset.order_by('-created_at'), 2):
+                ws.cell(row=row_num, column=1, value=lead.email)
+                ws.cell(row=row_num, column=2, value=lead.name)
+                ws.cell(row=row_num, column=3, value=lead.phone)
+                ws.cell(row=row_num, column=4, value=lead.form.name if lead.form else '')
+                ws.cell(row=row_num, column=5, value=lead.get_status_display())
+                ws.cell(row=row_num, column=6, value=lead.affiliate_code)
+                ws.cell(row=row_num, column=7, value=lead.utm_source)
+                ws.cell(row=row_num, column=8, value=lead.utm_medium)
+                ws.cell(row=row_num, column=9, value=lead.utm_campaign)
+                ws.cell(row=row_num, column=10, value=lead.created_at.strftime('%Y-%m-%d %H:%M:%S'))
+                ws.cell(row=row_num, column=11, value=lead.updated_at.strftime('%Y-%m-%d %H:%M:%S'))
+                ws.cell(row=row_num, column=12, value=lead.ip_address)
                 
-                # Add form data fields
+                # Add form data columns dynamically
+                form_data = lead.form_data or {}
                 for key, value in form_data.items():
                     if key not in ['email', 'name', 'phone']:  # Avoid duplicates
-                        row[f'Form_{key.title()}'] = str(value) if value else ''
-                
-                data.append(row)
+                        # Find or create column for this form field
+                        header_key = f'Form_{key.title()}'
+                        if header_key not in headers:
+                            headers.append(header_key)
+                            col_num = len(headers)
+                            # Add header if it's the first time we see this field
+                            if row_num == 2:  # First data row
+                                cell = ws.cell(row=1, column=col_num)
+                                cell.value = header_key
+                                cell.font = header_font
+                                cell.fill = header_fill
+                        
+                        col_num = headers.index(header_key) + 1
+                        ws.cell(row=row_num, column=col_num, value=str(value) if value else '')
             
-            df = pd.DataFrame(data)
+            # Auto-adjust column widths
+            for column in ws.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
             
-            # Create Excel response
+            # Create HTTP response
             response = HttpResponse(
                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             )
@@ -259,7 +301,8 @@ class ExportLeadsView(APIView):
             filename = f"leads_export{filename_suffix}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             
-            df.to_excel(response, index=False, engine='openpyxl')
+            # Save workbook to response
+            wb.save(response)
             
             return response
             
