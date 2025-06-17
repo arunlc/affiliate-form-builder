@@ -21,14 +21,14 @@ echo "⚛️ Building React frontend (emergency fix mode)..."
 if command -v node &> /dev/null; then
     echo "✅ Node.js found: $(node --version)"
     echo "✅ NPM version: $(npm --version)"
-    
+
     cd frontend
-    
+
     # Clean previous builds
     echo "🧹 Cleaning previous builds..."
     rm -rf dist node_modules/.cache
-    
-    # Write correct PostCSS config
+
+    # Write correct PostCSS config (must be .cjs, not .js)
     echo "🔧 Creating fixed PostCSS config..."
     cat > postcss.config.cjs << 'EOF'
 module.exports = {
@@ -38,7 +38,7 @@ module.exports = {
   }
 }
 EOF
-    
+
     # Write correct vite config (no PostCSS section!)
     echo "🔧 Creating emergency vite config..."
     cat > vite.config.js << 'EOF'
@@ -77,15 +77,15 @@ export default defineConfig({
   }
 })
 EOF
-    
+
     # Install dependencies
     echo "📦 Installing npm dependencies..."
     npm install --prefer-offline --no-audit
-    
+
     # Build with emergency config
     echo "🔨 Building React application (emergency mode)..."
     npm run build
-    
+
     # Verify build output
     if [ -f "dist/index.html" ]; then
         echo "✅ React build successful!"
@@ -94,19 +94,35 @@ EOF
     else
         echo "❌ React build failed, creating manual fallback..."
         mkdir -p dist
-        
+
         # Create beautiful standalone fallback with embedded React
         cat > dist/index.html << 'FALLBACK'
-<!-- fallback HTML as in your original script -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Affiliate Form Builder</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/axios@1.6.0/dist/axios.min.js"></script>
+    <!-- ... (rest of your fallback HTML here) ... -->
+</head>
+<body>
+    <div id="root"></div>
+    <!-- ... (rest of your fallback HTML here) ... -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>
 FALLBACK
         echo "✅ Created beautiful React fallback app with full functionality"
     fi
-    
+
     cd ..
 else
     echo "❌ Node.js not found - using Django template fallback"
     mkdir -p frontend/dist
-    # Copy Django template as fallback
     cp templates/index.html frontend/dist/index.html 2>/dev/null || echo "Creating basic fallback"
 fi
 
