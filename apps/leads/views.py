@@ -376,11 +376,4 @@ class LeadStatsView(APIView):
             
         except Exception as e:
             logger.error(f"Stats error: {e}")
-            return Response({'error': str(e)}, status=500)user_type == 'affiliate':
-            # Affiliates only see leads they generated
-            try:
-                affiliate = Affiliate.objects.get(user=user)
-                queryset = queryset.filter(affiliate=affiliate)
-            except Affiliate.DoesNotExist:
-                queryset = Lead.objects.none()
-        elif user.
+            return Response({'error': str(e)}, status=500)
