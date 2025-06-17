@@ -18,10 +18,16 @@ cd ..
 echo "📁 Collecting static files..."
 python manage.py collectstatic --no-input
 
-# IMPORTANT: Don't delete migrations - just run them in correct order
-echo "🗄️ Running migrations in correct order..."
+# CREATE migrations first, THEN run them
+echo "🗄️ Creating migrations in correct order..."
+python manage.py makemigrations users
+python manage.py makemigrations core
+python manage.py makemigrations forms
+python manage.py makemigrations affiliates
+python manage.py makemigrations leads
 
-# Migrate core apps first
+echo "🗄️ Running migrations in correct order..."
+# Migrate core Django apps first
 python manage.py migrate auth
 python manage.py migrate contenttypes
 
@@ -29,7 +35,7 @@ python manage.py migrate contenttypes
 python manage.py migrate users
 python manage.py migrate core
 python manage.py migrate forms
-python manage.py migrate affiliates --fake-initial 2>/dev/null || python manage.py migrate affiliates
+python manage.py migrate affiliates
 python manage.py migrate leads
 
 # Create tokens for auth
