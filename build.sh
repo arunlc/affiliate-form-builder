@@ -18,25 +18,21 @@ cd ..
 echo "📁 Collecting static files..."
 python manage.py collectstatic --no-input
 
-# CREATE migrations first, THEN run them
-echo "🗄️ Creating migrations in correct order..."
+# For FRESH database - create migrations and migrate
+echo "🗄️ Creating and running migrations..."
+
+# Remove any existing migration files to start fresh
+find apps/*/migrations -name "*.py" -not -name "__init__.py" -delete
+
+# Create migrations in dependency order
 python manage.py makemigrations users
 python manage.py makemigrations core
 python manage.py makemigrations forms
 python manage.py makemigrations affiliates
 python manage.py makemigrations leads
 
-echo "🗄️ Running migrations in correct order..."
-# Migrate core Django apps first
-python manage.py migrate auth
-python manage.py migrate contenttypes
-
-# Migrate our apps in dependency order
-python manage.py migrate users
-python manage.py migrate core
-python manage.py migrate forms
-python manage.py migrate affiliates
-python manage.py migrate leads
+# Run migrations
+python manage.py migrate
 
 # Create tokens for auth
 echo "🔑 Setting up authentication..."
