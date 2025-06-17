@@ -1,5 +1,3 @@
-# Replace the static files section in backend/settings/production.py
-
 import dj_database_url
 from .base import *
 
@@ -20,15 +18,23 @@ CORS_ALLOW_CREDENTIALS = True
 # Security
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'SAMEORIGIN'  # Allow embedding in iframes
+X_FRAME_OPTIONS = 'SAMEORIGIN'
 
-# OVERRIDE STATIC FILE SETTINGS FOR PRODUCTION
-# Use simpler static file handling to avoid MIME type issues
+# Static files - Fixed for production
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Simple static file serving
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
-# Disable WhiteNoise compression temporarily
-WHITENOISE_USE_FINDERS = False
+# WhiteNoise settings
+WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = False
+
+# Fix MIME types
+import mimetypes
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/javascript", ".js", True)
 
 # Logging
 LOGGING = {
@@ -39,8 +45,14 @@ LOGGING = {
             'class': 'logging.StreamHandler',
         },
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+        },
     },
 }
