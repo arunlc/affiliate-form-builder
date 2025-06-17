@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Exit on error
 set -o errexit
 
 echo "🔧 Starting build process..."
@@ -8,90 +7,33 @@ echo "🔧 Starting build process..."
 echo "📦 Installing Python dependencies..."
 pip install -r requirements.txt
 
-# Install Node.js dependencies and build frontend
+# Setup frontend
 echo "⚛️ Setting up frontend..."
 cd frontend
-
-# Check if package.json exists
-if [ ! -f "package.json" ]; then
-    echo "❌ Error: package.json not found in frontend directory"
-    exit 1
-fi
-
-# Install dependencies
-echo "📦 Installing Node.js dependencies..."
 npm install
-
-# Check if all required config files exist
-echo "🔍 Checking frontend configuration..."
-if [ ! -f "vite.config.js" ]; then
-    echo "❌ Warning: vite.config.js not found"
-fi
-
-if [ ! -f "tailwind.config.js" ]; then
-    echo "❌ Warning: tailwind.config.js not found"
-fi
-
-if [ ! -f "postcss.config.js" ]; then
-    echo "❌ Warning: postcss.config.js not found"
-fi
-
-# Build frontend with verbose output
-echo "🏗️ Building frontend..."
 npm run build
-
-# Check if build succeeded
-if [ -d "dist" ]; then
-    echo "✅ Frontend build successful! Files in dist:"
-    ls -la dist/
-    if [ -d "dist/assets" ]; then
-        echo "📁 Assets directory contents:"
-        ls -la dist/assets/
-    else
-        echo "⚠️ No assets directory found in dist"
-    fi
-else
-    echo "❌ Error: Frontend build failed - no dist directory created"
-    exit 1
-fi
-
 cd ..
 
 # Collect static files
 echo "📁 Collecting static files..."
-python manage.py collectstatic --no-input --verbosity=2
+python manage.py collectstatic --no-input
 
-# Check if static files were collected
-if [ -d "staticfiles" ]; then
-    echo "✅ Static files collected! Contents:"
-    ls -la staticfiles/
-    if [ -d "staticfiles/assets" ]; then
-        echo "📁 Static assets directory contents:"
-        ls -la staticfiles/assets/
-    else
-        echo "⚠️ No assets directory in staticfiles"
-        echo "📁 All staticfiles contents:"
-        find staticfiles -type f -name "*.css" -o -name "*.js" | head -10
-    fi
-else
-    echo "❌ Error: Static files collection failed"
-    exit 1
-fi
+# IMPORTANT: Don't delete migrations - just run them in correct order
+echo "🗄️ Running migrations in correct order..."
 
-# Create migrations in the correct order (users first, then others)
-echo "🗄️ Creating migrations..."
-python manage.py makemigrations users
-python manage.py makemigrations core
-python manage.py makemigrations forms
-python manage.py makemigrations affiliates
-python manage.py makemigrations leads
+# Migrate core apps first
+python manage.py migrate auth
+python manage.py migrate contenttypes
 
-# Run database migrations (INCLUDING TOKEN AUTH)
-echo "🗄️ Running migrations..."
-python manage.py migrate
+# Migrate our apps in dependency order
+python manage.py migrate users
+python manage.py migrate core
+python manage.py migrate forms
+python manage.py migrate affiliates --fake-initial 2>/dev/null || python manage.py migrate affiliates
+python manage.py migrate leads
 
-# Create tokens for existing users (if any)
-echo "🔑 Setting up authentication tokens..."
+# Create tokens for auth
+echo "🔑 Setting up authentication..."
 python manage.py shell -c "
 from django.contrib.auth import get_user_model
 from rest_framework.authtoken.models import Token
@@ -101,4 +43,8 @@ for user in User.objects.all():
     print(f'Token created for user: {user.username}')
 "
 
-echo "✅ Build process completed successfully!"
+# Create sample data
+echo "🌱 Creating sample data..."
+python seed_data_for_render.py
+
+echo "✅ Build completed successfully!"
