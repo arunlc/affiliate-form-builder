@@ -38,6 +38,8 @@ module.exports = {
   }
 }
 EOF
+    # REMOVE postcss.config.js IF IT EXISTS
+    rm -f postcss.config.js
 
     # Write correct vite config (no PostCSS section!)
     echo "🔧 Creating emergency vite config..."
@@ -94,29 +96,7 @@ EOF
     else
         echo "❌ React build failed, creating manual fallback..."
         mkdir -p dist
-
-        # Create beautiful standalone fallback with embedded React
-        cat > dist/index.html << 'FALLBACK'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Affiliate Form Builder</title>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/axios@1.6.0/dist/axios.min.js"></script>
-    <!-- ... (rest of your fallback HTML here) ... -->
-</head>
-<body>
-    <div id="root"></div>
-    <!-- ... (rest of your fallback HTML here) ... -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</body>
-</html>
-FALLBACK
-        echo "✅ Created beautiful React fallback app with full functionality"
+        # (fallback HTML here if desired)
     fi
 
     cd ..
@@ -149,15 +129,12 @@ import os
 import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings.production')
 django.setup()
-
 from django.contrib.auth import get_user_model
 User = get_user_model()
-
 users = [
     ('affiliate1', 'affiliate123', 'affiliate', 'AFF001'),
     ('operations', 'ops123', 'operations', None)
 ]
-
 for username, password, user_type, affiliate_id in users:
     user, created = User.objects.get_or_create(
         username=username,
@@ -171,7 +148,6 @@ for username, password, user_type, affiliate_id in users:
         user.set_password(password)
         user.save()
         print(f'✅ Created {username} user')
-
 print('✅ User setup complete')
 " || echo "⚠️ User creation failed, but continuing"
 
