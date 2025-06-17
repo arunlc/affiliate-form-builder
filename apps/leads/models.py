@@ -1,8 +1,6 @@
-# apps/leads/models.py
+# apps/leads/models.py - FIXED VERSION
 from django.db import models
 from django.contrib.auth import get_user_model
-from apps.forms.models import Form
-from apps.affiliates.models import Affiliate
 import uuid
 
 User = get_user_model()
@@ -21,8 +19,16 @@ class Lead(models.Model):
     )
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    form = models.ForeignKey(Form, on_delete=models.CASCADE, related_name='leads')
-    affiliate = models.ForeignKey(Affiliate, on_delete=models.SET_NULL, null=True, blank=True, related_name='leads')
+    
+    # Use string references to avoid circular imports
+    form = models.ForeignKey('forms.Form', on_delete=models.CASCADE, related_name='leads')
+    affiliate = models.ForeignKey(
+        'affiliates.Affiliate', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='leads'
+    )
     
     # Lead data
     form_data = models.JSONField(default=dict)  # Store all form submission data
@@ -43,7 +49,13 @@ class Lead(models.Model):
     # Status and notes
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
     notes = models.TextField(blank=True)
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_leads')
+    assigned_to = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='assigned_leads'
+    )
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -64,6 +76,7 @@ class Lead(models.Model):
     @property
     def affiliate_code(self):
         return self.affiliate.affiliate_code if self.affiliate else None
+
 
 class LeadNote(models.Model):
     lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='lead_notes')
