@@ -1,20 +1,17 @@
-# backend/settings/production.py - SIMPLIFIED and FIXED
+# backend/settings/production.py - ULTRA SIMPLE VERSION
+import os
 import dj_database_url
 from pathlib import Path
-import os
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-temp-key-change-in-production-very-long-secret-key')
-
-# SECURITY WARNING: don't run with debug turned on in production!
+# Security
+SECRET_KEY = os.environ.get('SECRET_KEY', 'temp-secret-key-for-deployment-change-later-in-production')
 DEBUG = False
+ALLOWED_HOSTS = ['*']
 
-ALLOWED_HOSTS = ['*']  # Simplified for Render
-
-# Application definition - FIXED ORDER
+# Applications - MINIMAL ORDER
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -22,20 +19,17 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    
-    # Third party
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    
-    # Local apps - USERS MUST BE FIRST!
-    'apps.users',      # MUST be first due to custom User model
-    'apps.core',       # Core functionality
-    'apps.forms',      # Forms (depends on users)
-    'apps.affiliates', # Affiliates (depends on users) 
-    'apps.leads',      # Leads (depends on forms and affiliates)
+    'apps.users',
+    'apps.core',
+    'apps.forms',
+    'apps.affiliates',
+    'apps.leads',
 ]
 
+# Middleware
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
@@ -50,6 +44,7 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'backend.urls'
 
+# Templates
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -68,14 +63,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-# Database - FIXED
+# Database
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
-    DATABASES = {
-        'default': dj_database_url.parse(DATABASE_URL)
-    }
+    DATABASES = {'default': dj_database_url.parse(DATABASE_URL)}
 else:
-    # Fallback to SQLite for local testing
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -83,21 +75,8 @@ else:
         }
     }
 
-# Password validation
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-]
+# Password validation - SIMPLIFIED
+AUTH_PASSWORD_VALIDATORS = []
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
@@ -105,23 +84,13 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-# Frontend build directory
-STATICFILES_DIRS = []
-frontend_dist = BASE_DIR / 'frontend' / 'dist'
-if frontend_dist.exists():
-    STATICFILES_DIRS.append(frontend_dist)
-
-# Static files storage
+STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'dist'] if (BASE_DIR / 'frontend' / 'dist').exists() else []
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Default primary key field type
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# Custom User Model - CRITICAL: This must match your users app
+# Custom user model
 AUTH_USER_MODEL = 'users.User'
 
 # REST Framework
@@ -133,40 +102,24 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 20,
 }
 
-# CORS settings
-CORS_ALLOWED_ORIGINS = [
-    "https://*.onrender.com",
-]
-CORS_ALLOW_ALL_ORIGINS = True  # Temporary for deployment
+# CORS - WIDE OPEN FOR NOW
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# Security settings
-SECURE_BROWSER_XSS_FILTER = True
-SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'ALLOWALL'  # Allow embedding forms
+# Security - MINIMAL
+X_FRAME_OPTIONS = 'ALLOWALL'
 
-# Logging
+# Default field
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Logging - MINIMAL
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
     'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-        },
+        'console': {'class': 'logging.StreamHandler'},
     },
-    'root': {
-        'handlers': ['console'],
-        'level': 'INFO',
-    },
-    'loggers': {
-        'django': {
-            'handlers': ['console'],
-            'level': 'INFO',
-            'propagate': False,
-        },
-    },
+    'root': {'handlers': ['console'], 'level': 'INFO'},
 }
