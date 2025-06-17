@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import TemplateView
 from django.views.static import serve
+from apps.forms.views import EmbedFormView, FormSubmissionView
 
 urlpatterns = [
     # Admin
@@ -17,8 +18,8 @@ urlpatterns = [
     path('api/core/', include('apps.core.urls')),
     
     # Embed routes (separate from API)
-    path('embed/<uuid:form_id>/', 'apps.forms.views.EmbedFormView.as_view()'),
-    path('embed/<uuid:form_id>/submit/', 'apps.forms.views.FormSubmissionView.as_view()'),
+    path('embed/<uuid:form_id>/', EmbedFormView.as_view(), name='embed_form'),
+    path('embed/<uuid:form_id>/submit/', FormSubmissionView.as_view(), name='form_submit'),
 ]
 
 # Static files
