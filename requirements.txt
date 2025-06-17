@@ -1,28 +1,31 @@
-# Core Django dependencies - FIXED VERSIONS
+# Minimal requirements.txt - STABLE VERSIONS
+# Core Django - using LTS version
 Django==4.2.16
+
+# REST Framework
 djangorestframework==3.14.0
+
+# CORS handling
 django-cors-headers==4.3.1
 
 # Database
 psycopg2-binary==2.9.9
 dj-database-url==2.1.0
 
-# Environment
+# Environment variables
 python-decouple==3.8
 
 # Production server
 gunicorn==21.2.0
+
+# Static files
 whitenoise==6.6.0
 
-# Image processing
-Pillow==10.4.0
+# Basic data processing (simplified)
+pandas==2.0.3
+openpyxl==3.1.2
 
-# Data processing (simplified)
-pandas==2.1.4
-openpyxl==3.1.5
-
-# HTTP requests  
+# HTTP requests
 requests==2.31.0
 
-# Development tools (optional)
-django-extensions==3.2.3
+# Essential only - no extra dependencies
