@@ -1,4 +1,4 @@
-# backend/settings/production.py - ULTRA SIMPLE VERSION
+# backend/settings/production.py - MINIMAL WORKING VERSION
 import os
 import dj_database_url
 from pathlib import Path
@@ -7,26 +7,31 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 # Security
-SECRET_KEY = os.environ.get('SECRET_KEY', 'temp-secret-key-for-deployment-change-later-in-production')
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-temp-key-for-deployment-change-in-production')
 DEBUG = False
 ALLOWED_HOSTS = ['*']
 
-# Applications - MINIMAL ORDER
+# Applications - EXACT ORDER MATTERS
 INSTALLED_APPS = [
+    # Django core
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
+    # Third party
     'rest_framework',
     'rest_framework.authtoken',
     'corsheaders',
-    'apps.users',
-    'apps.core',
-    'apps.forms',
-    'apps.affiliates',
-    'apps.leads',
+    
+    # Local apps - DEPENDENCY ORDER IS CRITICAL
+    'apps.users',  # MUST be first (custom user model)
+    'apps.core',   # Basic settings
+    'apps.forms',  # Forms (depends on users)
+    'apps.affiliates',  # Affiliates (depends on users and forms)
+    'apps.leads',  # Leads (depends on forms and affiliates)
 ]
 
 # Middleware
@@ -75,7 +80,7 @@ else:
         }
     }
 
-# Password validation - SIMPLIFIED
+# NO Password validation for deployment simplicity
 AUTH_PASSWORD_VALIDATORS = []
 
 # Internationalization
@@ -87,10 +92,15 @@ USE_TZ = True
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'frontend' / 'dist'] if (BASE_DIR / 'frontend' / 'dist').exists() else []
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_DIRS = []
 
-# Custom user model
+# Add frontend dist if it exists
+if (BASE_DIR / 'frontend' / 'dist').exists():
+    STATICFILES_DIRS.append(BASE_DIR / 'frontend' / 'dist')
+
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# Custom user model - CRITICAL
 AUTH_USER_MODEL = 'users.User'
 
 # REST Framework
@@ -104,17 +114,18 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS - WIDE OPEN FOR NOW
+# CORS - Allow all for now
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# Security - MINIMAL
+# Security - Minimal for deployment
 X_FRAME_OPTIONS = 'ALLOWALL'
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
 
 # Default field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Logging - MINIMAL
+# Logging - Simple
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -122,4 +133,11 @@ LOGGING = {
         'console': {'class': 'logging.StreamHandler'},
     },
     'root': {'handlers': ['console'], 'level': 'INFO'},
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
 }
