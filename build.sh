@@ -72,8 +72,32 @@ python manage.py collectstatic --noinput --clear || {
 
 # Database setup
 echo "🗄️ Database setup..."
+
+# Clear migration history and rebuild
+python -c "
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings.production')
+django.setup()
+
+from django.db import connection
+cursor = connection.cursor()
+
+# Clear migration history
+try:
+    cursor.execute('DELETE FROM django_migrations;')
+    print('✅ Migration history cleared')
+except Exception as e:
+    print(f'Migration clear: {e}')
+"
+
+# Fake initial migrations to avoid conflicts
+python manage.py migrate auth --fake-initial --noinput
+python manage.py migrate contenttypes --fake-initial --noinput
+
+# Now apply our migrations in order
 python manage.py makemigrations users --noinput
-python manage.py migrate users --noinput
+python manage.py migrate users --fake-initial --noinput
 python manage.py makemigrations core --noinput  
 python manage.py migrate core --noinput
 python manage.py makemigrations forms --noinput
@@ -82,7 +106,6 @@ python manage.py makemigrations affiliates --noinput
 python manage.py migrate affiliates --noinput
 python manage.py makemigrations leads --noinput
 python manage.py migrate leads --noinput
-python manage.py migrate --noinput
 
 echo "✅ Database migrations completed"
 
