@@ -1,4 +1,4 @@
-# apps/forms/models.py
+# apps/forms/models.py - FIXED VERSION
 from django.db import models
 from django.contrib.auth import get_user_model
 import uuid
@@ -30,6 +30,14 @@ class Form(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # Add the many-to-many relationship to affiliates
+    assigned_affiliates = models.ManyToManyField(
+        'affiliates.Affiliate',
+        through='affiliates.AffiliateFormAssignment',
+        related_name='assigned_forms',
+        blank=True
+    )
+    
     class Meta:
         ordering = ['-created_at']
     
@@ -38,8 +46,10 @@ class Form(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.embed_code:
-            self.embed_code = f'<iframe src="https://yourapp.com/embed/{self.id}" width="100%" height="600px"></iframe>'
+            # We'll set this after we know the domain
+            self.embed_code = f'<iframe src="/embed/{self.id}/" width="100%" height="600px" frameborder="0"></iframe>'
         super().save(*args, **kwargs)
+
 
 class FormField(models.Model):
     FIELD_TYPES = (
