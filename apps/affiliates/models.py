@@ -29,58 +29,161 @@ class Affiliate(models.Model):
             return (self.total_conversions / self.total_leads) * 100
         return 0
 
-    def get_assigned_forms(self):
-        """Get all forms assigned to this affiliate"""
-        return self.assigned_forms.filter(is_active=True) if hasattr(self, 'assigned_forms') else []
+# apps/forms/models.py - FIXED VERSION
+from django.db import models
+from django.contrib.auth import get_user_model
+import uuid
+
+User = get_user_model()
+
+class Form(models.Model):
+    FORM_TYPES = (
+        ('lead_capture', 'Lead Capture'),
+        ('contact', 'Contact Form'),
+        ('newsletter', 'Newsletter Signup'),
+    )
     
-    def get_leads_count_for_forms(self):
-        """Get total leads for all assigned forms"""
-        if hasattr(self, 'leads'):
-            return self.leads.filter(form__in=self.get_assigned_forms()).count()
-        return 0
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    form_type = models.CharField(max_length=50, choices=FORM_TYPES, default='lead_capture')
+    
+    # Form configuration
+    fields_config = models.JSONField(default=dict)
+    styling_config = models.JSONField(default=dict)
+    
+    # Embed settings
+    embed_code = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    
+    # Tracking
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return self.name
+    
+    def save(self, *args, **kwargs):
+        if not self.embed_code:
+            self.embed_code = f'<iframe src="/embed/{self.id}/" width="100%" height="600px" frameborder="0"></iframe>'
+        super().save(*args, **kwargs)
 
+class FormField(models.Model):
+    FIELD_TYPES = (
+        ('text', 'Text Input'),
+        ('email', 'Email'),
+        ('phone', 'Phone'),
+        ('textarea', 'Textarea'),
+        ('select', 'Select Dropdown'),
+        ('checkbox', 'Checkbox'),
+        ('radio', 'Radio Button'),
+    )
+    
+    form = models.ForeignKey(Form, related_name='fields', on_delete=models.CASCADE)
+    field_type = models.CharField(max_length=20, choices=FIELD_TYPES)
+    label = models.CharField(max_length=200)
+    placeholder = models.CharField(max_length=200, blank=True)
+    is_required = models.BooleanField(default=False)
+    options = models.JSONField(default=list, blank=True)
+    order = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.form.name} - {self.label}"
 
-class AffiliateFormAssignment(models.Model):
-    """Through model for Affiliate-Form assignments with additional metadata"""
-    affiliate = models.ForeignKey(Affiliate, on_delete=models.CASCADE)
-    # Use string reference to avoid circular import
-    form = models.ForeignKey('forms.Form', on_delete=models.CASCADE)
-    assigned_at = models.DateTimeField(auto_now_add=True)
-    assigned_by = models.ForeignKey(
+# apps/leads/models.py - FIXED VERSION  
+from django.db import models
+from django.contrib.auth import get_user_model
+import uuid
+
+User = get_user_model()
+
+class Lead(models.Model):
+    STATUS_CHOICES = (
+        ('new', 'New'),
+        ('contacted', 'Contacted'),
+        ('qualified', 'Qualified'),
+        ('demo_scheduled', 'Demo Scheduled'),
+        ('demo_completed', 'Demo Completed'),
+        ('proposal_sent', 'Proposal Sent'),
+        ('negotiating', 'Negotiating'),
+        ('closed_won', 'Closed Won'),
+        ('closed_lost', 'Closed Lost'),
+    )
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # String references to avoid circular imports
+    form = models.ForeignKey('forms.Form', on_delete=models.CASCADE, related_name='leads')
+    affiliate = models.ForeignKey(
+        'affiliates.Affiliate', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='leads'
+    )
+    
+    # Lead data
+    form_data = models.JSONField(default=dict)
+    email = models.EmailField()
+    name = models.CharField(max_length=200, blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    
+    # Tracking data
+    utm_source = models.CharField(max_length=100, blank=True)
+    utm_medium = models.CharField(max_length=100, blank=True)
+    utm_campaign = models.CharField(max_length=100, blank=True)
+    utm_term = models.CharField(max_length=100, blank=True)
+    utm_content = models.CharField(max_length=100, blank=True)
+    referrer_url = models.URLField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    
+    # Status and notes
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    notes = models.TextField(blank=True)
+    assigned_to = models.ForeignKey(
         User, 
         on_delete=models.SET_NULL, 
         null=True, 
-        related_name='form_assignments_made'
+        blank=True, 
+        related_name='assigned_leads'
     )
-    is_active = models.BooleanField(default=True)
     
-    # Performance tracking for this specific assignment
-    leads_generated = models.PositiveIntegerField(default=0)
-    conversions = models.PositiveIntegerField(default=0)
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        unique_together = ['affiliate', 'form']
-        ordering = ['-assigned_at']
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email']),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['affiliate']),
+        ]
     
     def __str__(self):
-        return f"{self.affiliate.affiliate_code} → {self.form.name}"
+        return f"{self.email} - {self.form.name} ({self.status})"
     
     @property
-    def conversion_rate(self):
-        if self.leads_generated > 0:
-            return (self.conversions / self.leads_generated) * 100
-        return 0
+    def affiliate_code(self):
+        return self.affiliate.affiliate_code if self.affiliate else None
 
-    def update_stats(self):
-        """Update performance stats for this assignment"""
-        if hasattr(self.affiliate, 'leads'):
-            leads = self.affiliate.leads.filter(form=self.form)
-            self.leads_generated = leads.count()
-            self.conversions = leads.filter(
-                status__in=['qualified', 'demo_completed', 'closed_won']
-            ).count()
-            self.save()
-
-
-# Add the many-to-many relationship after defining the through model
-# This will be added via a migration, not here directly to avoid circular imports
+class LeadNote(models.Model):
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='lead_notes')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    note = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Note for {self.lead.email} by {self.user.username}"
