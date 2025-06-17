@@ -1,11 +1,17 @@
-# render.yaml - Render deployment configuration
+# render.yaml
+databases:
+  - name: affiliate-form-db
+    databaseName: affiliate_forms
+    user: affiliate_user
+    plan: starter
+
 services:
   - type: web
     name: affiliate-form-builder
     env: python
     buildCommand: "./build.sh"
     startCommand: "gunicorn backend.wsgi:application --bind 0.0.0.0:$PORT"
-    plan: starter  # Change to 'standard' for better performance
+    plan: starter
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
@@ -17,158 +23,3 @@ services:
         value: 1000
       - key: MAX_REQUESTS_JITTER
         value: 100
-
-databases:
-  - name: affiliate-form-db
-    databaseName: affiliate_forms
-    user: affiliate_user
-    plan: starter  # PostgreSQL starter plan
-
-# Optional: Redis for caching/sessions
-# - type: redis
-#   name: affiliate-form-redis
-#   plan: starter
-#   ipAllowList: []
-
----
-
-# .gitignore
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Django
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-media/
-staticfiles/
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
----
-
-# requirements.txt
-Django==4.2.7
-djangorestframework==3.14.0
-django-cors-headers==4.3.1
-django-environ==0.11.2
-psycopg2-binary==2.9.9
-dj-database-url==2.1.0
-gunicorn==21.2.0
-whitenoise==6.6.0
-celery==5.3.4
-redis==5.0.1
-pandas==2.1.3
-openpyxl==3.1.2
-Pillow==10.1.0
-django-extensions==3.2.3
-requests==2.31.0
-python-decouple==3.8
-
----
-
-# .env.example
-# ⚠️ DO NOT COMMIT THIS FILE WITH ACTUAL VALUES
-# This is just a template - set actual values in Render Environment Variables
-
-# Django Core
-SECRET_KEY=generate-a-random-50-character-secret-key-for-production
-DEBUG=False
-DJANGO_SETTINGS_MODULE=backend.settings.production
-
-# Database (Will be provided by Render PostgreSQL)
-DATABASE_URL=postgresql://affiliate_user:password@hostname:port/affiliate_forms
-
-# Deployment
-ALLOWED_HOSTS=your-app-name.onrender.com
-CORS_ALLOWED_ORIGINS=https://your-app-name.onrender.com
-
-# Frontend
-FRONTEND_URL=https://your-app-name.onrender.com
-
-# Optional: Email Configuration
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=True
-EMAIL_HOST_USER=your-email@gmail.com
-EMAIL_HOST_PASSWORD=your-app-password
-
-# Optional: Redis (for caching/sessions)
-REDIS_URL=redis://red-xxx:port
-
-# Development Override (not used in production)
-# DEBUG=True
-# ALLOWED_HOSTS=localhost,127.0.0.1
-# CORS_ALLOWED_ORIGINS=http://localhost:3000
-
----
-
-# build.sh
-#!/usr/bin/env bash
-# Exit on error
-set -o errexit
-
-# Install Python dependencies
-pip install -r requirements.txt
-
-# Install Node.js dependencies and build frontend
-cd frontend
-npm ci
-npm run build
-cd ..
-
-# Collect static files
-python manage.py collectstatic --no-input
-
-# Run database migrations
-python manage.py migrate
