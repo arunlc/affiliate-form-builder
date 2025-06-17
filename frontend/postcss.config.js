@@ -1,7 +1,6 @@
-// frontend/postcss.config.js - FIXED VERSION
-export default {
+module.exports = {
   plugins: {
     tailwindcss: {},
     autoprefixer: {},
-  },
+  }
 }
