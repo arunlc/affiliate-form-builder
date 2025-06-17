@@ -5,215 +5,93 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Affiliate Form Builder</title>
-    <!-- Basic fallback styles -->
+    
+    <!-- Load React CSS -->
+    <link rel="stylesheet" type="text/css" href="{% static 'assets/index.css' %}" />
+    
     <style>
-      .fallback-container {
+      /* Fallback styles while React loads */
+      #fallback {
         min-height: 100vh;
-        background-color: #f9fafb;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         font-family: system-ui, -apple-system, sans-serif;
-      }
-      .fallback-content {
+        color: white;
         text-align: center;
-        max-width: 600px;
-        padding: 2rem;
       }
-      .fallback-title {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #111827;
+      #fallback h1 {
+        font-size: 2rem;
         margin-bottom: 1rem;
       }
-      .fallback-subtitle {
-        color: #6b7280;
+      #fallback p {
+        opacity: 0.9;
         margin-bottom: 2rem;
-        font-size: 1.1rem;
       }
-      .fallback-buttons {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-      .fallback-btn {
-        padding: 0.75rem 1.5rem;
-        border-radius: 0.5rem;
-        text-decoration: none;
-        font-weight: 500;
-        transition: all 0.2s;
+      .btn {
         display: inline-block;
-      }
-      .fallback-btn-primary {
-        background-color: #2563eb;
+        padding: 12px 24px;
+        background: rgba(255,255,255,0.2);
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 8px;
         color: white;
+        text-decoration: none;
+        margin: 0 8px;
+        transition: all 0.3s ease;
       }
-      .fallback-btn-primary:hover {
-        background-color: #1d4ed8;
+      .btn:hover {
+        background: rgba(255,255,255,0.3);
+        transform: translateY(-2px);
       }
-      .fallback-btn-secondary {
-        background-color: #16a34a;
-        color: white;
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255,255,255,0.3);
+        border-top: 4px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
       }
-      .fallback-btn-secondary:hover {
-        background-color: #15803d;
-      }
-      .fallback-accounts {
-        margin-top: 2rem;
-        color: #6b7280;
-        font-size: 0.9rem;
-      }
-      .fallback-code {
-        background-color: #e5e7eb;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.25rem;
-        font-family: monospace;
-        color: #374151;
-      }
-      .fallback-footer {
-        margin-top: 1.5rem;
-        color: #9ca3af;
-        font-size: 0.8rem;
-      }
-      .debug-info {
-        margin-top: 2rem;
-        padding: 1rem;
-        background-color: #fef3c7;
-        border-radius: 0.5rem;
-        text-align: left;
-        font-size: 0.85rem;
-        color: #92400e;
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
       }
     </style>
   </head>
   <body>
     <div id="root">
-      <!-- Fallback content with inline styles -->
-      <div class="fallback-container">
-        <div class="fallback-content">
-          <h1 class="fallback-title">
-            Affiliate Form Builder SaaS
-          </h1>
-          <p class="fallback-subtitle">
-            Platform Ready for Deployment! 🚀
-          </p>
-          <div class="fallback-buttons">
-            <a href="/admin" class="fallback-btn fallback-btn-primary">
-              Admin Panel
-            </a>
-            <a href="/api/core/dashboard/" class="fallback-btn fallback-btn-secondary">
-              API Test
-            </a>
+      <!-- Fallback content -->
+      <div id="fallback">
+        <div>
+          <h1>🚀 Affiliate Form Builder</h1>
+          <p>Loading your dashboard...</p>
+          <div class="spinner"></div>
+          <div style="margin-top: 2rem;">
+            <a href="/admin" class="btn">Admin Panel</a>
+            <a href="/api/core/dashboard/" class="btn">API Status</a>
           </div>
-          <div class="fallback-accounts">
-            <p style="margin-bottom: 0.5rem;">Test Accounts Available:</p>
-            <div style="margin-bottom: 0.25rem;">
-              🔑 Affiliate: <span class="fallback-code">affiliate1 / affiliate123</span>
-            </div>
-            <div>
-              🔑 Operations: <span class="fallback-code">operations / ops123</span>
-            </div>
-          </div>
-          <div class="fallback-footer">
-            Built with Django + React | Ready for form building & affiliate tracking
-          </div>
-          
-          <!-- Debug Information -->
-          <div class="debug-info" id="debug-info">
-            <strong>Debug Info:</strong><br>
-            React Loading Status: <span id="react-status">Checking...</span><br>
-            Asset Paths: <span id="asset-paths">Loading...</span>
+          <div style="margin-top: 2rem; font-size: 0.9rem; opacity: 0.8;">
+            Test Accounts: affiliate1/affiliate123 • operations/ops123
           </div>
         </div>
       </div>
     </div>
     
-    <!-- Enhanced debugging and React loading -->
+    <!-- Load React JS -->
+    <script type="module" src="{% static 'assets/index.js' %}"></script>
+    
     <script>
-      const debugInfo = document.getElementById('debug-info');
-      const reactStatus = document.getElementById('react-status');
-      const assetPaths = document.getElementById('asset-paths');
-      
-      const loadReactApp = async () => {
-        try {
-          // Try multiple possible asset paths
-          const possiblePaths = [
-            '/static/assets/index.css',
-            '/static/index.css', 
-            '/staticfiles/assets/index.css',
-            '/assets/index.css'
-          ];
-          
-          let foundCss = null;
-          let foundJs = null;
-          
-          // Test each possible CSS path
-          for (const path of possiblePaths) {
-            try {
-              const response = await fetch(path, { method: 'HEAD' });
-              if (response.ok && response.headers.get('content-type')?.includes('text/css')) {
-                foundCss = path;
-                break;
-              }
-            } catch (e) {
-              // Continue to next path
-            }
+      // Hide fallback when React loads
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(function() {
+          // Check if React has mounted
+          const root = document.getElementById('root');
+          if (root && root.children.length > 1) {
+            document.getElementById('fallback').style.display = 'none';
           }
-          
-          // Test corresponding JS paths
-          if (foundCss) {
-            const jsPath = foundCss.replace('.css', '.js');
-            try {
-              const jsResponse = await fetch(jsPath, { method: 'HEAD' });
-              if (jsResponse.ok) {
-                foundJs = jsPath;
-              }
-            } catch (e) {
-              // JS not found
-            }
-          }
-          
-          assetPaths.textContent = `CSS: ${foundCss || 'Not found'}, JS: ${foundJs || 'Not found'}`;
-          
-          if (foundCss && foundJs) {
-            // Load CSS
-            const cssLink = document.createElement('link');
-            cssLink.rel = 'stylesheet';
-            cssLink.href = foundCss;
-            document.head.appendChild(cssLink);
-            
-            // Load JS
-            const jsScript = document.createElement('script');
-            jsScript.type = 'module';
-            jsScript.src = foundJs;
-            document.head.appendChild(jsScript);
-            
-            reactStatus.textContent = '✅ React app loaded successfully';
-            debugInfo.style.backgroundColor = '#dcfce7';
-            debugInfo.style.color = '#166534';
-          } else {
-            reactStatus.textContent = '❌ React assets not found - using fallback';
-            
-            // Check what's actually at the static URL
-            try {
-              const staticResponse = await fetch('/static/assets/index.css');
-              const responseText = await staticResponse.text();
-              
-              if (responseText.includes('<!DOCTYPE html>') || responseText.includes('<html>')) {
-                reactStatus.textContent = '⚠️ Static files return HTML (routing issue)';
-              }
-            } catch (e) {
-              reactStatus.textContent = '❌ Static file path completely missing';
-            }
-          }
-        } catch (e) {
-          reactStatus.textContent = `❌ Error: ${e.message}`;
-        }
-      };
-      
-      // Load React app after page loads
-      window.addEventListener('DOMContentLoaded', loadReactApp);
+        }, 2000);
+      });
     </script>
   </body>
 </html>
