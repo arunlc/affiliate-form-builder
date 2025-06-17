@@ -1,4 +1,4 @@
-# Minimal requirements.txt - STABLE VERSIONS
+# requirements.txt - NO PANDAS VERSION (avoiding numpy conflicts)
 # Core Django - using LTS version
 Django==4.2.16
 
@@ -21,11 +21,11 @@ gunicorn==21.2.0
 # Static files
 whitenoise==6.6.0
 
-# Basic data processing (simplified)
-pandas==2.0.3
+# Excel handling without pandas (alternative)
 openpyxl==3.1.2
 
 # HTTP requests
 requests==2.31.0
 
-# Essential only - no extra dependencies
+# NO PANDAS - avoiding numpy compatibility issues
+# We'll implement Excel export using openpyxl directly
