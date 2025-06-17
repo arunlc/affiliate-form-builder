@@ -17,10 +17,8 @@ urlpatterns = [
     path('api/core/', include('apps.core.urls')),
     
     # Embed routes (separate from API)
-    path('embed/<uuid:form_id>/', include([
-        path('', 'apps.forms.views.EmbedFormView.as_view', name='embed_form'),
-        path('submit/', 'apps.forms.views.FormSubmissionView.as_view', name='form_submit'),
-    ])),
+    path('embed/<uuid:form_id>/', 'apps.forms.views.EmbedFormView.as_view()'),
+    path('embed/<uuid:form_id>/submit/', 'apps.forms.views.FormSubmissionView.as_view()'),
 ]
 
 # Static files
