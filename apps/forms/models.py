@@ -30,7 +30,7 @@ class Form(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    # Add the many-to-many relationship to affiliates
+    # FIXED: Add the many-to-many relationship with proper through model
     assigned_affiliates = models.ManyToManyField(
         'affiliates.Affiliate',
         through='affiliates.AffiliateFormAssignment',
