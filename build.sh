@@ -5,6 +5,7 @@ echo "🔧 Starting build process..."
 
 # Install Python dependencies
 echo "📦 Installing Python dependencies..."
+pip install --upgrade pip
 pip install -r requirements.txt
 
 # Setup frontend
@@ -52,40 +53,64 @@ for i in range(max_tries):
             raise
 "
 
-# FIXED: Reset migrations to avoid dependency issues
-echo "🗄️ Resetting migrations..."
-find . -path "*/migrations/*.py" -not -name "__init__.py" -delete
-find . -path "*/migrations/*.pyc" -delete
-
-# Create migrations in proper dependency order
-echo "🗄️ Creating migrations in proper order..."
-
-# 1. Users first (base model)
-echo "Creating users migrations..."
-python manage.py makemigrations users --verbosity=2
-
-# 2. Core app (no dependencies)
-echo "Creating core migrations..."
-python manage.py makemigrations core --verbosity=2
-
-# 3. Forms app (depends on User)
-echo "Creating forms migrations..."
-python manage.py makemigrations forms --verbosity=2
-
-# 4. Affiliates app (depends on User and Forms)
-echo "Creating affiliates migrations..."
-python manage.py makemigrations affiliates --verbosity=2
-
-# 5. Leads app (depends on User, Forms, and Affiliates)
-echo "Creating leads migrations..."
-python manage.py makemigrations leads --verbosity=2
-
-# Run all migrations
+# Simple migration approach - let Django handle dependencies
 echo "🗄️ Running migrations..."
-python manage.py migrate --verbosity=2
+python manage.py makemigrations --verbosity=1
+python manage.py migrate --verbosity=1
 
-# Create superuser and sample data
+# Create superuser if needed
 echo "🌱 Setting up initial data..."
-python seed_data_for_render.py
+python -c "
+import os
+import django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings.production')
+django.setup()
+
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+# Create basic users
+user1, created = User.objects.get_or_create(
+    username='affiliate1',
+    defaults={
+        'email': 'affiliate1@example.com',
+        'user_type': 'affiliate',
+        'affiliate_id': 'AFF001'
+    }
+)
+if created:
+    user1.set_password('affiliate123')
+    user1.save()
+    print('✅ Created affiliate1 user')
+
+ops_user, created = User.objects.get_or_create(
+    username='operations',
+    defaults={
+        'email': 'ops@example.com',
+        'user_type': 'operations'
+    }
+)
+if created:
+    ops_user.set_password('ops123')
+    ops_user.save()
+    print('✅ Created operations user')
+
+# Try to create admin
+try:
+    admin = User.objects.filter(is_superuser=True).first()
+    if not admin:
+        admin = User.objects.create_superuser(
+            username='admin',
+            email='admin@example.com',
+            password='admin123',
+            user_type='admin'
+        )
+        print('✅ Created admin user')
+except Exception as e:
+    print(f'⚠️ Admin creation: {e}')
+
+print('🎉 Basic setup completed!')
+"
 
 echo "✅ Build completed successfully!"
