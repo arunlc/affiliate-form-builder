@@ -1,4 +1,4 @@
-# render.yaml
+# render.yaml - UPDATED FOR REACT
 databases:
   - name: affiliate-form-db
     databaseName: affiliate_forms
@@ -15,11 +15,9 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: NODE_VERSION
+        value: 18
       - key: DJANGO_SETTINGS_MODULE
         value: backend.settings.production
       - key: WEB_CONCURRENCY
         value: 2
-      - key: MAX_REQUESTS
-        value: 1000
-      - key: MAX_REQUESTS_JITTER
-        value: 100
