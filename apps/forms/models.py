@@ -29,15 +29,7 @@ class Form(models.Model):
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
-    # FIXED: Add the many-to-many relationship with proper through model
-    assigned_affiliates = models.ManyToManyField(
-        'affiliates.Affiliate',
-        through='affiliates.AffiliateFormAssignment',
-        related_name='assigned_forms',
-        blank=True
-    )
-    
+        
     class Meta:
         ordering = ['-created_at']
     
