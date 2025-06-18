@@ -1,7 +1,8 @@
-# backend/settings/production.py - FINAL FIX FOR STATIC FILES
+# backend/settings/production.py - FIXED MIME TYPES
 import os
 import dj_database_url
 from pathlib import Path
+import mimetypes
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -91,9 +92,8 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# STATIC FILES CONFIGURATION - CRITICAL FIX
-# Change STATIC_URL to match what React expects
-STATIC_URL = '/assets/'  # CHANGED: This is the key fix!
+# STATIC FILES CONFIGURATION
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Include React build directory
@@ -101,8 +101,22 @@ STATICFILES_DIRS = [
     BASE_DIR / 'frontend' / 'dist',
 ]
 
-# WhiteNoise storage - USE SIMPLE VERSION
+# CRITICAL: Fix MIME types
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/javascript", ".js", True)
+mimetypes.add_type("application/json", ".json", True)
+
+# WhiteNoise storage with correct MIME types
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# WhiteNoise configuration with MIME type fixes
+WHITENOISE_MIMETYPES = {
+    '.css': 'text/css',
+    '.js': 'application/javascript',
+    '.json': 'application/json',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+}
 
 # Static file finders
 STATICFILES_FINDERS = [
