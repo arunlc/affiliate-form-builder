@@ -1,4 +1,4 @@
-# backend/urls.py - REPLACE YOUR ENTIRE URLS.PY WITH THIS
+# backend/urls.py - FIXED VERSION FOR STATIC FILES
 
 from django.contrib import admin
 from django.urls import path, include, re_path
@@ -10,9 +10,10 @@ from django.shortcuts import render
 import os
 import mimetypes
 
-# Add MIME types
+# CRITICAL: Add MIME types for static files
 mimetypes.add_type("application/javascript", ".js", True)
 mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/json", ".json", True)
 
 def health_check(request):
     """Health check endpoint"""
@@ -88,7 +89,7 @@ urlpatterns = [
          __import__('apps.forms.views', fromlist=['FormSubmissionView']).FormSubmissionView.as_view()(r, form_id=form_id)),
 ]
 
-# CRITICAL: Static files must come BEFORE catch-all React routes
+# STATIC FILES HANDLING - CRITICAL SECTION
 if settings.DEBUG:
     # Development
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
@@ -98,22 +99,47 @@ else:
     def serve_static_with_mime(request, path):
         """Serve static files with correct MIME type"""
         try:
+            # Build full file path
+            full_path = os.path.join(settings.STATIC_ROOT, path)
+            
+            # Check if file exists
+            if not os.path.exists(full_path):
+                return HttpResponse('File not found', status=404)
+            
             # Determine MIME type
-            content_type, _ = mimetypes.guess_type(path)
+            content_type, _ = mimetypes.guess_type(full_path)
             
-            # Serve the file
-            response = serve(request, path, document_root=settings.STATIC_ROOT)
-            if content_type:
-                response['Content-Type'] = content_type
+            # Override common types to ensure they're correct
+            if path.endswith('.js'):
+                content_type = 'application/javascript'
+            elif path.endswith('.css'):
+                content_type = 'text/css'
+            elif path.endswith('.json'):
+                content_type = 'application/json'
+            elif path.endswith('.woff2'):
+                content_type = 'font/woff2'
+            elif path.endswith('.woff'):
+                content_type = 'font/woff'
+            elif path.endswith('.ttf'):
+                content_type = 'font/ttf'
             
-            # Add caching headers for assets
-            if any(path.endswith(ext) for ext in ['.css', '.js', '.png', '.jpg', '.svg']):
-                response['Cache-Control'] = 'public, max-age=31536000'  # 1 year
+            # Default to octet-stream if unknown
+            if not content_type:
+                content_type = 'application/octet-stream'
             
-            return response
-        except Exception:
-            # If file not found, let it 404
-            return HttpResponse('File not found', status=404)
+            # Read and serve the file
+            with open(full_path, 'rb') as f:
+                response = HttpResponse(f.read(), content_type=content_type)
+                
+                # Add caching headers for assets
+                if any(path.endswith(ext) for ext in ['.css', '.js', '.png', '.jpg', '.svg', '.woff', '.woff2']):
+                    response['Cache-Control'] = 'public, max-age=31536000'  # 1 year
+                
+                return response
+                
+        except Exception as e:
+            print(f"Error serving static file {path}: {e}")
+            return HttpResponse('Error serving file', status=500)
     
     # Static files URLs - MUST come before React routes
     urlpatterns += [
