@@ -1,4 +1,4 @@
-# backend/urls.py - FIXED FOR REACT APP
+# backend/urls.py - FIXED FOR STATIC FILES
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
@@ -10,6 +10,12 @@ from django.utils import timezone
 from django.shortcuts import render
 from apps.forms.views import EmbedFormView, FormSubmissionView
 import os
+import mimetypes
+
+# Add missing MIME types
+mimetypes.add_type("application/javascript", ".js", True)
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/json", ".json", True)
 
 def health_check(request):
     """Health check endpoint"""
@@ -24,7 +30,7 @@ def health_check(request):
 def react_app_view(request):
     """Serve React app index.html"""
     try:
-        # Try to serve React build
+        # Try to serve React build from static files
         static_root = settings.STATIC_ROOT
         index_path = os.path.join(static_root, 'index.html')
         
@@ -56,7 +62,7 @@ def react_app_view(request):
         <h1 class="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
             Affiliate Form Builder
         </h1>
-        <p class="text-gray-600 mb-6">SaaS Platform Loading...</p>
+        <p class="text-gray-600 mb-6">Loading React application...</p>
         
         <div class="space-y-3">
             <a href="/admin" class="block w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-blue-700">
@@ -77,14 +83,53 @@ def react_app_view(request):
         // Auto-refresh to check for React app
         setTimeout(() => {
             window.location.reload();
-        }, 5000);
+        }, 3000);
     </script>
 </body>
 </html>"""
         return HttpResponse(fallback_html, content_type='text/html')
 
+# Custom static file serving view with proper MIME types
+def serve_static_file(request, path):
+    """Serve static files with correct MIME types"""
+    try:
+        # Get the file extension and determine MIME type
+        _, ext = os.path.splitext(path)
+        
+        # Set proper MIME type based on extension
+        if ext == '.js':
+            content_type = 'application/javascript'
+        elif ext == '.css':
+            content_type = 'text/css'
+        elif ext == '.json':
+            content_type = 'application/json'
+        elif ext == '.png':
+            content_type = 'image/png'
+        elif ext == '.jpg' or ext == '.jpeg':
+            content_type = 'image/jpeg'
+        elif ext == '.svg':
+            content_type = 'image/svg+xml'
+        elif ext == '.ico':
+            content_type = 'image/x-icon'
+        else:
+            content_type = None
+        
+        # Serve the file with proper MIME type
+        response = serve(request, path, document_root=settings.STATIC_ROOT)
+        if content_type:
+            response['Content-Type'] = content_type
+        
+        # Add cache headers for static assets
+        if ext in ['.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.ico']:
+            response['Cache-Control'] = 'public, max-age=31536000'  # 1 year
+        
+        return response
+    except Exception as e:
+        # Return 404 if file not found
+        return HttpResponse('File not found', status=404)
+
 urlpatterns = [
-    # Health check
+    # Health check - must be first
     path('health/', health_check, name='health_check'),
     
     # Admin
@@ -102,26 +147,33 @@ urlpatterns = [
     path('embed/<uuid:form_id>/submit/', FormSubmissionView.as_view(), name='form_submit'),
 ]
 
-# Static files serving
+# Static files serving - CRITICAL ORDER
 if settings.DEBUG:
+    # Development static files
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 else:
-    # Production static file serving
+    # Production static files with proper MIME types
     urlpatterns += [
-        re_path(r'^static/(?P<path>.*)$', serve, {
-            'document_root': settings.STATIC_ROOT,
-        }),
+        # Assets folder (CSS, JS, etc.) - must come before catch-all
+        re_path(r'^assets/(?P<path>.*)$', serve_static_file, name='serve_assets'),
+        
+        # Other static files
+        re_path(r'^static/(?P<path>.*)$', serve_static_file, name='serve_static'),
+        
+        # Favicon and other root files
+        re_path(r'^favicon\.ico$', serve_static_file, {'path': 'favicon.ico'}),
+        re_path(r'^robots\.txt$', serve_static_file, {'path': 'robots.txt'}),
     ]
 
-# REACT APP ROUTES - Serve React app for all other routes
+# REACT SPA ROUTES - Must be last to avoid catching API/static routes
 urlpatterns += [
-    # Serve React app for root and all SPA routes
+    # Serve React app for root
     path('', react_app_view, name='react_home'),
     
-    # Catch all routes for React SPA
-    re_path(r'^(?!static|media|api|admin|embed|health).*/$', react_app_view, name='react_spa'),
+    # Catch all other routes for React SPA (excluding API, admin, embed, static)
+    re_path(r'^(?!static|media|api|admin|embed|health|assets).*/$', react_app_view, name='react_spa'),
     
-    # Handle routes without trailing slash
-    re_path(r'^(?!static|media|api|admin|embed|health)[^/]*$', react_app_view, name='react_spa_no_slash'),
+    # Handle routes without trailing slash (excluding known paths)
+    re_path(r'^(?!static|media|api|admin|embed|health|assets)[^/]*$', react_app_view, name='react_spa_no_slash'),
 ]
