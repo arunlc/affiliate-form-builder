@@ -1,4 +1,4 @@
-# backend/settings/production.py - OPTIMIZED WHITENOISE CONFIGURATION
+# backend/settings/production.py - FIXED STATIC URL
 import os
 import dj_database_url
 from pathlib import Path
@@ -91,25 +91,17 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# STATIC FILES CONFIGURATION - SIMPLIFIED FOR WHITENOISE
-STATIC_URL = '/static/'
+# STATIC FILES CONFIGURATION - FIXED URL TO MATCH REACT
+STATIC_URL = '/assets/'  # CHANGED: Match React's expectation
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# CRITICAL: Include both the React build directory and any static dirs
-STATICFILES_DIRS = []
+# Include React build directory
+STATICFILES_DIRS = [
+    BASE_DIR / 'frontend' / 'dist',
+]
 
-# Add React build directory if it exists
-react_build_dir = BASE_DIR / 'frontend' / 'dist'
-if react_build_dir.exists():
-    STATICFILES_DIRS.append(react_build_dir)
-
-# Add any additional static directories
-static_dir = BASE_DIR / 'static'
-if static_dir.exists():
-    STATICFILES_DIRS.append(static_dir)
-
-# CRITICAL: WhiteNoise storage configuration
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# WhiteNoise storage configuration
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Static file finders
 STATICFILES_FINDERS = [
@@ -117,9 +109,9 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
-# CRITICAL: WhiteNoise configuration - SIMPLIFIED
+# WhiteNoise configuration
 WHITENOISE_USE_FINDERS = True
-WHITENOISE_AUTOREFRESH = DEBUG  # Only in development
+WHITENOISE_AUTOREFRESH = DEBUG
 WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br']
 
 # Media files
@@ -129,7 +121,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom user model - CRITICAL: This must come AFTER INSTALLED_APPS
+# Custom user model
 AUTH_USER_MODEL = 'users.User'
 
 # REST Framework
@@ -150,7 +142,7 @@ CORS_ALLOW_CREDENTIALS = True
 # Security settings
 X_FRAME_OPTIONS = 'ALLOWALL'
 
-# Logging - ADD WHITENOISE DEBUG
+# Logging
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -164,11 +156,6 @@ LOGGING = {
         'level': 'INFO',
     },
     'loggers': {
-        'django.staticfiles': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
         'whitenoise': {
             'handlers': ['console'],
             'level': 'DEBUG',
@@ -177,5 +164,5 @@ LOGGING = {
     },
 }
 
-# Email backend (dummy for now)
+# Email backend
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
