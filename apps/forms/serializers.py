@@ -1,4 +1,4 @@
-# apps/forms/serializers.py
+# apps/forms/serializers.py - FIXED VERSION
 from rest_framework import serializers
 from django.utils import timezone
 from datetime import timedelta
@@ -61,7 +61,11 @@ class FormSerializer(serializers.ModelSerializer):
         """Get number of affiliates assigned to this form (Admin only)"""
         request = self.context.get('request')
         if request and request.user.user_type == 'admin':
-            return obj.assigned_affiliates.filter(is_active=True).count()
+            # FIXED: Use the correct relationship through AffiliateFormAssignment
+            return obj.affiliateformassignment_set.filter(
+                is_active=True,
+                affiliate__is_active=True
+            ).count()
         return None
     
     def get_my_submissions(self, obj):
