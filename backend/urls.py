@@ -1,13 +1,10 @@
-# backend/urls.py - FOCUSED MIME TYPE FIX
+# backend/urls.py - SIMPLIFIED STATIC FILE HANDLING
 
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
-from django.conf.urls.static import static
 from django.http import HttpResponse, FileResponse
-from django.shortcuts import render
 import os
-import mimetypes
 
 def serve_react_app(request):
     """Serve React app index.html"""
@@ -32,52 +29,6 @@ def serve_react_app(request):
     """
     return HttpResponse(fallback_html, content_type='text/html')
 
-def serve_static_with_correct_mime(request, path):
-    """Serve static files with correct MIME types"""
-    try:
-        full_path = os.path.join(settings.STATIC_ROOT, path)
-        
-        if not os.path.exists(full_path):
-            return HttpResponse('Not Found', status=404)
-        
-        # CRITICAL: Set correct MIME types
-        if path.endswith('.css'):
-            content_type = 'text/css'
-        elif path.endswith('.js'):
-            content_type = 'application/javascript'
-        elif path.endswith('.json'):
-            content_type = 'application/json'
-        elif path.endswith('.woff2'):
-            content_type = 'font/woff2'
-        elif path.endswith('.woff'):
-            content_type = 'font/woff'
-        elif path.endswith('.ttf'):
-            content_type = 'font/ttf'
-        elif path.endswith('.svg'):
-            content_type = 'image/svg+xml'
-        elif path.endswith('.png'):
-            content_type = 'image/png'
-        elif path.endswith('.jpg') or path.endswith('.jpeg'):
-            content_type = 'image/jpeg'
-        else:
-            content_type, _ = mimetypes.guess_type(full_path)
-            if not content_type:
-                content_type = 'application/octet-stream'
-        
-        response = FileResponse(
-            open(full_path, 'rb'), 
-            content_type=content_type
-        )
-        
-        # Add caching for assets
-        if any(path.endswith(ext) for ext in ['.css', '.js', '.woff', '.woff2', '.png', '.jpg', '.svg']):
-            response['Cache-Control'] = 'public, max-age=31536000'
-        
-        return response
-        
-    except Exception as e:
-        return HttpResponse(f'Error: {e}', status=500)
-
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
@@ -96,21 +47,12 @@ urlpatterns = [
          __import__('apps.forms.views', fromlist=['FormSubmissionView']).FormSubmissionView.as_view()(r, form_id=form_id)),
 ]
 
-# CRITICAL: Static file handling for production
-if not settings.DEBUG:
-    # Serve static files with correct MIME types
-    urlpatterns += [
-        # MUST handle assets directory specifically
-        re_path(r'^assets/(?P<path>.*)$', serve_static_with_correct_mime),
-        re_path(r'^static/(?P<path>.*)$', serve_static_with_correct_mime),
-        
-        # Root files
-        re_path(r'^favicon\.ico$', serve_static_with_correct_mime, {'path': 'favicon.ico'}),
-        re_path(r'^robots\.txt$', serve_static_with_correct_mime, {'path': 'robots.txt'}),
-    ]
+# CRITICAL: DO NOT add custom static file handlers in production
+# Let WhiteNoise handle all static files automatically
 
-# React SPA routes (MUST be last)
+# React SPA routes (MUST be last) - but exclude static paths
 urlpatterns += [
     path('', serve_react_app),
-    re_path(r'^(?!api|admin|static|assets|embed|favicon|robots).*$', serve_react_app),
+    # CRITICAL: Updated regex to properly exclude static paths
+    re_path(r'^(?!api/|admin/|static/|assets/|embed/|favicon|robots).*$', serve_react_app),
 ]
