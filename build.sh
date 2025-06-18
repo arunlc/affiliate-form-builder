@@ -28,12 +28,9 @@ if command -v node &> /dev/null; then
     echo "🧹 Cleaning previous builds..."
     rm -rf dist node_modules/.cache
 
-    # Remove any problematic config files
-    rm -f postcss.config.cjs
-
     # Create correct PostCSS config
     echo "🔧 Creating PostCSS config..."
-    cat > postcss.config.js << 'EOF'
+    cat > postcss.config.cjs << 'EOF'
 module.exports = {
   plugins: {
     tailwindcss: {},
