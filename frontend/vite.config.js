@@ -50,7 +50,7 @@ export default defineConfig({
     host: true
   },
   css: {
-    postcss: './postcss.config.js',
+    postcss: './postcss.config.cjs',
   },
   resolve: {
     alias: {
