@@ -1,4 +1,4 @@
-# backend/urls.py - SIMPLIFIED STATIC FILE HANDLING
+# backend/urls.py - FINAL SIMPLE VERSION
 
 from django.contrib import admin
 from django.urls import path, include, re_path
@@ -16,18 +16,21 @@ def serve_react_app(request):
         pass
     
     # Fallback HTML
-    fallback_html = """
+    return HttpResponse("""
     <!DOCTYPE html>
     <html>
-    <head><title>Affiliate Form Builder</title></head>
+    <head>
+        <title>Affiliate Form Builder</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
     <body style="font-family: Arial; text-align: center; margin-top: 100px;">
         <h1>🚀 Affiliate Form Builder</h1>
-        <p>React app is loading...</p>
-        <a href="/admin">Admin Panel</a>
+        <p>Loading...</p>
+        <p><a href="/admin">Admin Panel</a></p>
     </body>
     </html>
-    """
-    return HttpResponse(fallback_html, content_type='text/html')
+    """, content_type='text/html')
 
 urlpatterns = [
     # Admin
@@ -47,12 +50,9 @@ urlpatterns = [
          __import__('apps.forms.views', fromlist=['FormSubmissionView']).FormSubmissionView.as_view()(r, form_id=form_id)),
 ]
 
-# CRITICAL: DO NOT add custom static file handlers in production
-# Let WhiteNoise handle all static files automatically
-
-# React SPA routes (MUST be last) - but exclude static paths
+# React SPA routes - MUST be last and NOT catch static files
 urlpatterns += [
     path('', serve_react_app),
-    # CRITICAL: Updated regex to properly exclude static paths
-    re_path(r'^(?!api/|admin/|static/|assets/|embed/|favicon|robots).*$', serve_react_app),
+    # CRITICAL: Exclude assets/ from SPA routing
+    re_path(r'^(?!api/|admin/|assets/|embed/|favicon|robots).*$', serve_react_app),
 ]
