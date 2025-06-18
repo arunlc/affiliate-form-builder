@@ -1,7 +1,8 @@
-# backend/settings/production.py - FIXED VERSION
+# backend/settings/production.py - FIXED FOR STATIC FILES
 import os
 import dj_database_url
 from pathlib import Path
+import mimetypes
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -14,7 +15,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
-# Application definition - MINIMAL AND CORRECT ORDER
+# Application definition - CORRECT ORDER
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -39,7 +40,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # CRITICAL: for static files
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -91,17 +92,64 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# STATIC FILES CONFIGURATION - CRITICAL SECTION
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# Add this to serve React build files
+# CRITICAL: Include both the React build directory and any static dirs
 STATICFILES_DIRS = []
-if (BASE_DIR / 'frontend' / 'dist').exists():
-    STATICFILES_DIRS.append(BASE_DIR / 'frontend' / 'dist')
+
+# Add React build directory if it exists
+react_build_dir = BASE_DIR / 'frontend' / 'dist'
+if react_build_dir.exists():
+    STATICFILES_DIRS.append(react_build_dir)
+
+# Add any additional static directories
+static_dir = BASE_DIR / 'static'
+if static_dir.exists():
+    STATICFILES_DIRS.append(static_dir)
 
 # Static file storage
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# WhiteNoise configuration for MIME types
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
+
+# CRITICAL: Add MIME types for WhiteNoise
+WHITENOISE_MIMETYPES = {
+    '.js': 'application/javascript',
+    '.css': 'text/css',
+    '.json': 'application/json',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.eot': 'application/vnd.ms-fontobject',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.gif': 'image/gif',
+    '.ico': 'image/x-icon',
+    '.webp': 'image/webp',
+}
+
+# Add MIME types to Python's mimetypes module as well
+mimetypes.add_type("application/javascript", ".js", True)
+mimetypes.add_type("text/css", ".css", True)
+mimetypes.add_type("application/json", ".json", True)
+mimetypes.add_type("font/woff", ".woff", True)
+mimetypes.add_type("font/woff2", ".woff2", True)
+
+# Static file finders
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
+
+# Media files
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
@@ -139,6 +187,13 @@ LOGGING = {
     'root': {
         'handlers': ['console'],
         'level': 'INFO',
+    },
+    'loggers': {
+        'django.staticfiles': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
 
