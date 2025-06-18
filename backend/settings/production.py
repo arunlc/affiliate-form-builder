@@ -1,4 +1,4 @@
-# backend/settings/production.py - FIXED STATIC URL
+# backend/settings/production.py - FINAL FIX FOR STATIC FILES
 import os
 import dj_database_url
 from pathlib import Path
@@ -14,7 +14,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = ['*']
 
-# Application definition - CORRECT ORDER
+# Application definition
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -28,12 +28,12 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     
-    # Local apps - CRITICAL: users must be first since others depend on custom User model
-    'apps.users',      # MUST BE FIRST - other apps depend on this
-    'apps.core',       # Basic functionality
-    'apps.forms',      # Forms depend on users
-    'apps.affiliates', # Affiliates depend on users and forms  
-    'apps.leads',      # Leads depend on forms and affiliates
+    # Local apps
+    'apps.users',
+    'apps.core',
+    'apps.forms',
+    'apps.affiliates',
+    'apps.leads',
 ]
 
 MIDDLEWARE = [
@@ -82,7 +82,7 @@ else:
         }
     }
 
-# Password validation - DISABLED for simplicity
+# Password validation
 AUTH_PASSWORD_VALIDATORS = []
 
 # Internationalization
@@ -91,8 +91,9 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# STATIC FILES CONFIGURATION - FIXED URL TO MATCH REACT
-STATIC_URL = '/assets/'  # CHANGED: Match React's expectation
+# STATIC FILES CONFIGURATION - CRITICAL FIX
+# Change STATIC_URL to match what React expects
+STATIC_URL = '/assets/'  # CHANGED: This is the key fix!
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # Include React build directory
@@ -100,7 +101,7 @@ STATICFILES_DIRS = [
     BASE_DIR / 'frontend' / 'dist',
 ]
 
-# WhiteNoise storage configuration
+# WhiteNoise storage - USE SIMPLE VERSION
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Static file finders
@@ -112,7 +113,6 @@ STATICFILES_FINDERS = [
 # WhiteNoise configuration
 WHITENOISE_USE_FINDERS = True
 WHITENOISE_AUTOREFRESH = DEBUG
-WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br']
 
 # Media files
 MEDIA_URL = '/media/'
@@ -154,13 +154,6 @@ LOGGING = {
     'root': {
         'handlers': ['console'],
         'level': 'INFO',
-    },
-    'loggers': {
-        'whitenoise': {
-            'handlers': ['console'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
     },
 }
 
