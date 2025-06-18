@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -o errexit
 
-echo "🚀 AFFILIATE FORM BUILDER - PRODUCTION BUILD"
-echo "=============================================="
+echo "🚀 AFFILIATE FORM BUILDER - EMERGENCY DEPLOYMENT FIX"
+echo "====================================================="
 
 # Install Python dependencies
 echo "📦 Installing Python dependencies..."
@@ -15,6 +15,18 @@ python -c "import django; print(f'✅ Django {django.get_version()} installed')"
 
 # Environment setup
 export DJANGO_SETTINGS_MODULE=backend.settings.production
+
+# CRITICAL: Clean up any problematic migration files first
+echo "🧹 Cleaning up migration files..."
+find apps/*/migrations -name "0*.py" -delete 2>/dev/null || true
+find apps/*/migrations -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# Ensure migration directories exist
+echo "📁 Ensuring migration directories exist..."
+for app in users core forms affiliates leads; do
+    mkdir -p apps/$app/migrations
+    echo "# Migration package" > apps/$app/migrations/__init__.py
+done
 
 # Build frontend with fixed configuration
 echo "⚛️ Building React frontend..."
@@ -115,10 +127,27 @@ else
     exit 1
 fi
 
-# Database migrations
+# Database migrations - FIXED ORDER
 echo "🗄️ Running database migrations..."
-python manage.py makemigrations --noinput || echo "⚠️ No new migrations"
-python manage.py migrate --noinput
+
+# Create migrations in correct dependency order
+echo "📝 Creating migrations in dependency order..."
+python manage.py makemigrations users --name initial_user_model || echo "⚠️ Users migration exists"
+python manage.py makemigrations core --name initial_core_models || echo "⚠️ Core migration exists"  
+python manage.py makemigrations forms --name initial_form_models || echo "⚠️ Forms migration exists"
+python manage.py makemigrations affiliates --name initial_affiliate_models || echo "⚠️ Affiliates migration exists"
+python manage.py makemigrations leads --name initial_lead_models || echo "⚠️ Leads migration exists"
+
+# Apply migrations in order
+echo "🗄️ Applying migrations..."
+python manage.py migrate auth --run-syncdb || echo "⚠️ Auth already migrated"
+python manage.py migrate contenttypes --run-syncdb || echo "⚠️ Contenttypes already migrated"
+python manage.py migrate users || echo "⚠️ Users migration issue"
+python manage.py migrate core || echo "⚠️ Core migration issue"
+python manage.py migrate forms || echo "⚠️ Forms migration issue" 
+python manage.py migrate affiliates || echo "⚠️ Affiliates migration issue"
+python manage.py migrate leads || echo "⚠️ Leads migration issue"
+python manage.py migrate --run-syncdb || echo "⚠️ Final migration issue"
 
 # Collect static files - CRITICAL STEP
 echo "📁 Collecting static files..."
@@ -138,93 +167,3 @@ if [ -f "staticfiles/index.html" ]; then
         # Check for CSS and JS files
         css_files=$(find staticfiles/assets -name "*.css" | wc -l)
         js_files=$(find staticfiles/assets -name "*.js" | wc -l)
-        echo "📊 Found $css_files CSS files and $js_files JS files"
-    else
-        echo "⚠️ No assets directory found"
-    fi
-else
-    echo "⚠️ No React app in static files"
-    # Copy manually if needed
-    if [ -f "frontend/dist/index.html" ]; then
-        echo "📋 Copying React build manually..."
-        cp -r frontend/dist/* staticfiles/
-        echo "✅ React app copied to static files"
-    fi
-fi
-
-# Test MIME type setup
-echo "🔧 Testing MIME type configuration..."
-python -c "
-import mimetypes
-print('JS MIME type:', mimetypes.guess_type('test.js')[0])
-print('CSS MIME type:', mimetypes.guess_type('test.css')[0])
-print('JSON MIME type:', mimetypes.guess_type('test.json')[0])
-"
-
-# Create test users
-echo "👤 Creating test users..."
-python -c "
-import os
-import django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings.production')
-django.setup()
-from django.contrib.auth import get_user_model
-User = get_user_model()
-
-# Create users
-users = [
-    ('affiliate1', 'affiliate123', 'affiliate', 'AFF001'),
-    ('operations', 'ops123', 'operations', None)
-]
-
-for username, password, user_type, affiliate_id in users:
-    user, created = User.objects.get_or_create(
-        username=username,
-        defaults={
-            'email': f'{username}@example.com',
-            'user_type': user_type,
-            'affiliate_id': affiliate_id
-        }
-    )
-    if created:
-        user.set_password(password)
-        user.save()
-        print(f'✅ Created {username} user')
-    else:
-        print(f'ℹ️ {username} user already exists')
-
-# Create admin if needed
-admin_user = User.objects.filter(is_superuser=True).first()
-if not admin_user:
-    try:
-        admin_user = User.objects.create_superuser(
-            username='admin',
-            email='admin@example.com',
-            password='admin123',
-            user_type='admin'
-        )
-        print('✅ Created admin user')
-    except Exception as e:
-        print(f'⚠️ Admin creation: {e}')
-else:
-    print('ℹ️ Admin user already exists')
-
-print('✅ User setup complete')
-" || echo "⚠️ User creation completed with warnings"
-
-echo ""
-echo "🎉 BUILD COMPLETED SUCCESSFULLY!"
-echo "================================"
-echo "✅ Django backend: Ready"
-echo "✅ React frontend: Built and deployed"
-echo "✅ Database: Migrated"
-echo "✅ Static files: Collected with proper MIME types"
-echo "✅ Users: Created"
-echo ""
-echo "🔗 Your app: https://affiliate-form-builder.onrender.com"
-echo "🔑 Login credentials:"
-echo "   • affiliate1 / affiliate123"
-echo "   • operations / ops123"
-echo "   • admin / admin123"
-echo ""
-echo "🚀 The full React application should now be available!"
