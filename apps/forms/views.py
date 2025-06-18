@@ -1,4 +1,4 @@
-# apps/forms/views.py - Updated to support affiliate filtering
+# apps/forms/views.py - FIXED VERSION
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -30,16 +30,22 @@ class FormViewSet(viewsets.ModelViewSet):
         user = self.request.user
         
         if user.user_type == 'admin':
-            # Admins see all forms
+            # Admins see all forms - FIXED: removed 'assigned_affiliates' prefetch
             return Form.objects.all().select_related('created_by').prefetch_related(
-                'fields', 'assigned_affiliates'
+                'fields', 'affiliateformassignment_set__affiliate'
             ).order_by('-created_at')
         
         elif user.user_type == 'affiliate':
             # Affiliates only see forms assigned to them
             try:
                 affiliate = Affiliate.objects.get(user=user)
-                return affiliate.assigned_forms.filter(
+                # Get forms through the AffiliateFormAssignment relationship
+                assigned_form_ids = affiliate.affiliateformassignment_set.filter(
+                    is_active=True
+                ).values_list('form_id', flat=True)
+                
+                return Form.objects.filter(
+                    id__in=assigned_form_ids,
                     is_active=True
                 ).select_related('created_by').prefetch_related(
                     'fields', 'leads'
