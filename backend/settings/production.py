@@ -1,8 +1,7 @@
-# backend/settings/production.py - FIXED FOR STATIC FILES
+# backend/settings/production.py - OPTIMIZED WHITENOISE CONFIGURATION
 import os
 import dj_database_url
 from pathlib import Path
-import mimetypes
 
 # Build paths
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -92,7 +91,7 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# STATIC FILES CONFIGURATION - CRITICAL SECTION
+# STATIC FILES CONFIGURATION - SIMPLIFIED FOR WHITENOISE
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
@@ -109,43 +108,19 @@ static_dir = BASE_DIR / 'static'
 if static_dir.exists():
     STATICFILES_DIRS.append(static_dir)
 
-# Static file storage
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
-
-# WhiteNoise configuration for MIME types
-WHITENOISE_USE_FINDERS = True
-WHITENOISE_AUTOREFRESH = True
-
-# CRITICAL: Add MIME types for WhiteNoise
-WHITENOISE_MIMETYPES = {
-    '.js': 'application/javascript',
-    '.css': 'text/css',
-    '.json': 'application/json',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-    '.eot': 'application/vnd.ms-fontobject',
-    '.svg': 'image/svg+xml',
-    '.png': 'image/png',
-    '.jpg': 'image/jpeg',
-    '.jpeg': 'image/jpeg',
-    '.gif': 'image/gif',
-    '.ico': 'image/x-icon',
-    '.webp': 'image/webp',
-}
-
-# Add MIME types to Python's mimetypes module as well
-mimetypes.add_type("application/javascript", ".js", True)
-mimetypes.add_type("text/css", ".css", True)
-mimetypes.add_type("application/json", ".json", True)
-mimetypes.add_type("font/woff", ".woff", True)
-mimetypes.add_type("font/woff2", ".woff2", True)
+# CRITICAL: WhiteNoise storage configuration
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Static file finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
+
+# CRITICAL: WhiteNoise configuration - SIMPLIFIED
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = DEBUG  # Only in development
+WHITENOISE_SKIP_COMPRESS_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'zip', 'gz', 'tgz', 'bz2', 'tbz', 'xz', 'br']
 
 # Media files
 MEDIA_URL = '/media/'
@@ -175,7 +150,7 @@ CORS_ALLOW_CREDENTIALS = True
 # Security settings
 X_FRAME_OPTIONS = 'ALLOWALL'
 
-# Logging
+# Logging - ADD WHITENOISE DEBUG
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -190,6 +165,11 @@ LOGGING = {
     },
     'loggers': {
         'django.staticfiles': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+        'whitenoise': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
