@@ -1,4 +1,4 @@
-// frontend/src/pages/FormsPage.jsx - Updated for affiliate experience
+// frontend/src/pages/FormsPage.jsx - COMPLETE FIXED VERSION
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
@@ -58,33 +58,38 @@ export default function FormsPage() {
   const isAffiliate = user?.user_type === 'affiliate'
   const isOperations = user?.user_type === 'operations'
 
-  // Fetch forms with role-based filtering
+  // Fetch forms with role-based filtering - FIXED
   const { data: formsData, isLoading, error } = useQuery(
-    ['forms', { 
-      page: currentPage, 
-      pageSize, 
-      search: searchTerm, 
-      sortBy, 
-      sortOrder,
-      userType: user?.user_type,
-      affiliateId: user?.affiliate_id
-    }], 
+    ['forms', currentPage, pageSize, searchTerm, sortBy, sortOrder], 
     () => {
-      // Build query parameters based on user role
+      // Simplified parameters - let backend handle user role filtering
       const params = {
         page: currentPage,
         page_size: pageSize,
-        search: searchTerm,
         ordering: sortOrder === 'desc' ? `-${sortBy}` : sortBy
       }
-
+      
+      // Only add search if there's a search term
+      if (searchTerm.trim()) {
+        params.search = searchTerm.trim()
+      }
+      
+      console.log('🔍 Fetching forms with params:', params)
       return formsAPI.getForms(params)
     },
     {
       retry: 1,
       keepPreviousData: true,
+      onSuccess: (data) => {
+        console.log('✅ Forms fetched successfully:', data?.data)
+      },
       onError: (error) => {
-        console.error('Forms fetch error:', error)
+        console.error('❌ Forms fetch error:', error)
+        console.error('Error details:', {
+          status: error.response?.status,
+          message: error.message,
+          data: error.response?.data
+        })
         setNotification({
           type: 'error',
           message: 'Failed to load forms. Please try again.'
@@ -93,10 +98,23 @@ export default function FormsPage() {
     }
   )
 
-  // Extract forms and pagination info
-  const forms = formsData?.data?.results || []
-  const totalCount = formsData?.data?.count || 0
+  // FIXED: Extract forms and pagination info - handle both array and paginated responses
+  const forms = Array.isArray(formsData?.data) 
+    ? formsData.data 
+    : formsData?.data?.results || []
+
+  const totalCount = Array.isArray(formsData?.data) 
+    ? formsData.data.length 
+    : formsData?.data?.count || 0
+
   const totalPages = Math.ceil(totalCount / pageSize)
+
+  console.log('📊 Forms data extracted:', {
+    formsCount: forms.length,
+    totalCount,
+    totalPages,
+    rawDataType: Array.isArray(formsData?.data) ? 'array' : 'paginated object'
+  })
 
   // Create/Update form mutation (Admin only)
   const saveFormMutation = useMutation(
