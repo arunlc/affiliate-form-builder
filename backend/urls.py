@@ -1,8 +1,9 @@
-# backend/urls.py - FINAL SIMPLE VERSION
+# backend/urls.py - FINAL FIX WITH STATIC FILES
 
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
+from django.conf.urls.static import static
 from django.http import HttpResponse, FileResponse
 import os
 
@@ -50,7 +51,10 @@ urlpatterns = [
          __import__('apps.forms.views', fromlist=['FormSubmissionView']).FormSubmissionView.as_view()(r, form_id=form_id)),
 ]
 
-# React SPA routes - MUST be last and NOT catch static files
+# CRITICAL: Add static files serving for production
+urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+
+# React SPA routes - MUST be last
 urlpatterns += [
     path('', serve_react_app),
     # CRITICAL: Exclude assets/ from SPA routing
