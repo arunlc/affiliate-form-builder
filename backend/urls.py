@@ -1,77 +1,84 @@
-# backend/urls.py - FIXED VERSION FOR STATIC FILES
+# backend/urls.py - FOCUSED MIME TYPE FIX
 
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.views.static import serve
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from django.shortcuts import render
 import os
 import mimetypes
 
-# CRITICAL: Add MIME types for static files
-mimetypes.add_type("application/javascript", ".js", True)
-mimetypes.add_type("text/css", ".css", True)
-mimetypes.add_type("application/json", ".json", True)
-
-def health_check(request):
-    """Health check endpoint"""
-    return HttpResponse("OK", content_type="text/plain")
-
 def serve_react_app(request):
-    """Serve React app index.html for SPA routes"""
+    """Serve React app index.html"""
     try:
-        # Try to serve React build from staticfiles
         index_path = os.path.join(settings.STATIC_ROOT, 'index.html')
         if os.path.exists(index_path):
-            with open(index_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            return HttpResponse(content, content_type='text/html')
-    except Exception as e:
+            return FileResponse(open(index_path, 'rb'), content_type='text/html')
+    except Exception:
         pass
     
-    # Fallback if React build not available
+    # Fallback HTML
     fallback_html = """
     <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Affiliate Form Builder</title>
-        <script src="https://cdn.tailwindcss.com"></script>
-    </head>
-    <body class="min-h-screen bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-lg w-full text-center">
-            <h1 class="text-3xl font-bold mb-4">🚀 Affiliate Form Builder</h1>
-            <p class="text-gray-600 mb-6">React app is loading...</p>
-            <div class="space-y-3">
-                <a href="/admin" class="block w-full bg-blue-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-blue-700">
-                    🛠️ Admin Panel
-                </a>
-                <a href="/api/core/dashboard/" class="block w-full bg-green-600 text-white py-3 px-4 rounded-xl font-semibold hover:bg-green-700">
-                    📊 API Dashboard
-                </a>
-            </div>
-            <div class="mt-6 text-sm text-gray-500">
-                <p>Login: affiliate1 / affiliate123</p>
-                <p>Operations: operations / ops123</p>
-            </div>
-        </div>
-        <script>
-            // Auto-refresh to check for React app
-            setTimeout(() => window.location.reload(), 3000);
-        </script>
+    <html>
+    <head><title>Affiliate Form Builder</title></head>
+    <body style="font-family: Arial; text-align: center; margin-top: 100px;">
+        <h1>🚀 Affiliate Form Builder</h1>
+        <p>React app is loading...</p>
+        <a href="/admin">Admin Panel</a>
     </body>
     </html>
     """
     return HttpResponse(fallback_html, content_type='text/html')
 
-# URL Configuration
+def serve_static_with_correct_mime(request, path):
+    """Serve static files with correct MIME types"""
+    try:
+        full_path = os.path.join(settings.STATIC_ROOT, path)
+        
+        if not os.path.exists(full_path):
+            return HttpResponse('Not Found', status=404)
+        
+        # CRITICAL: Set correct MIME types
+        if path.endswith('.css'):
+            content_type = 'text/css'
+        elif path.endswith('.js'):
+            content_type = 'application/javascript'
+        elif path.endswith('.json'):
+            content_type = 'application/json'
+        elif path.endswith('.woff2'):
+            content_type = 'font/woff2'
+        elif path.endswith('.woff'):
+            content_type = 'font/woff'
+        elif path.endswith('.ttf'):
+            content_type = 'font/ttf'
+        elif path.endswith('.svg'):
+            content_type = 'image/svg+xml'
+        elif path.endswith('.png'):
+            content_type = 'image/png'
+        elif path.endswith('.jpg') or path.endswith('.jpeg'):
+            content_type = 'image/jpeg'
+        else:
+            content_type, _ = mimetypes.guess_type(full_path)
+            if not content_type:
+                content_type = 'application/octet-stream'
+        
+        response = FileResponse(
+            open(full_path, 'rb'), 
+            content_type=content_type
+        )
+        
+        # Add caching for assets
+        if any(path.endswith(ext) for ext in ['.css', '.js', '.woff', '.woff2', '.png', '.jpg', '.svg']):
+            response['Cache-Control'] = 'public, max-age=31536000'
+        
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f'Error: {e}', status=500)
+
 urlpatterns = [
-    # Health check (must be first)
-    path('health/', health_check, name='health_check'),
-    
     # Admin
     path('admin/', admin.site.urls),
     
@@ -82,83 +89,28 @@ urlpatterns = [
     path('api/affiliates/', include('apps.affiliates.urls')),
     path('api/core/', include('apps.core.urls')),
     
-    # Embed routes (these need to be before static files)
+    # Embed routes
     path('embed/<uuid:form_id>/', lambda r, form_id: 
          __import__('apps.forms.views', fromlist=['EmbedFormView']).EmbedFormView.as_view()(r, form_id=form_id)),
     path('embed/<uuid:form_id>/submit/', lambda r, form_id: 
          __import__('apps.forms.views', fromlist=['FormSubmissionView']).FormSubmissionView.as_view()(r, form_id=form_id)),
 ]
 
-# STATIC FILES HANDLING - CRITICAL SECTION
-if settings.DEBUG:
-    # Development
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-else:
-    # Production - serve static files with proper MIME types
-    def serve_static_with_mime(request, path):
-        """Serve static files with correct MIME type"""
-        try:
-            # Build full file path
-            full_path = os.path.join(settings.STATIC_ROOT, path)
-            
-            # Check if file exists
-            if not os.path.exists(full_path):
-                return HttpResponse('File not found', status=404)
-            
-            # Determine MIME type
-            content_type, _ = mimetypes.guess_type(full_path)
-            
-            # Override common types to ensure they're correct
-            if path.endswith('.js'):
-                content_type = 'application/javascript'
-            elif path.endswith('.css'):
-                content_type = 'text/css'
-            elif path.endswith('.json'):
-                content_type = 'application/json'
-            elif path.endswith('.woff2'):
-                content_type = 'font/woff2'
-            elif path.endswith('.woff'):
-                content_type = 'font/woff'
-            elif path.endswith('.ttf'):
-                content_type = 'font/ttf'
-            
-            # Default to octet-stream if unknown
-            if not content_type:
-                content_type = 'application/octet-stream'
-            
-            # Read and serve the file
-            with open(full_path, 'rb') as f:
-                response = HttpResponse(f.read(), content_type=content_type)
-                
-                # Add caching headers for assets
-                if any(path.endswith(ext) for ext in ['.css', '.js', '.png', '.jpg', '.svg', '.woff', '.woff2']):
-                    response['Cache-Control'] = 'public, max-age=31536000'  # 1 year
-                
-                return response
-                
-        except Exception as e:
-            print(f"Error serving static file {path}: {e}")
-            return HttpResponse('Error serving file', status=500)
-    
-    # Static files URLs - MUST come before React routes
+# CRITICAL: Static file handling for production
+if not settings.DEBUG:
+    # Serve static files with correct MIME types
     urlpatterns += [
-        # Assets folder (where Vite puts CSS/JS)
-        re_path(r'^assets/(?P<path>.*)$', serve_static_with_mime, name='serve_assets'),
+        # MUST handle assets directory specifically
+        re_path(r'^assets/(?P<path>.*)$', serve_static_with_correct_mime),
+        re_path(r'^static/(?P<path>.*)$', serve_static_with_correct_mime),
         
-        # General static files
-        re_path(r'^static/(?P<path>.*)$', serve_static_with_mime, name='serve_static'),
-        
-        # Root level files
-        re_path(r'^favicon\.ico$', serve_static_with_mime, {'path': 'favicon.ico'}),
-        re_path(r'^robots\.txt$', serve_static_with_mime, {'path': 'robots.txt'}),
+        # Root files
+        re_path(r'^favicon\.ico$', serve_static_with_correct_mime, {'path': 'favicon.ico'}),
+        re_path(r'^robots\.txt$', serve_static_with_correct_mime, {'path': 'robots.txt'}),
     ]
 
-# React SPA routes (MUST be last - catches everything else)
+# React SPA routes (MUST be last)
 urlpatterns += [
-    # Root
-    path('', serve_react_app, name='react_home'),
-    
-    # All other routes go to React (but NOT /api/, /admin/, /static/, /assets/)
-    re_path(r'^(?!api|admin|static|assets|health|embed|favicon|robots).*$', serve_react_app, name='react_catch_all'),
+    path('', serve_react_app),
+    re_path(r'^(?!api|admin|static|assets|embed|favicon|robots).*$', serve_react_app),
 ]
