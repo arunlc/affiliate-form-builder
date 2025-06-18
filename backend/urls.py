@@ -1,4 +1,4 @@
-# backend/urls.py - FIXED FOR STATIC FILES
+# backend/urls.py - FIXED VERSION (NO IMPORTS AT TOP LEVEL)
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
@@ -8,7 +8,6 @@ from django.views.static import serve
 from django.http import JsonResponse, HttpResponse
 from django.utils import timezone
 from django.shortcuts import render
-from apps.forms.views import EmbedFormView, FormSubmissionView
 import os
 import mimetypes
 
@@ -142,9 +141,13 @@ urlpatterns = [
     path('api/affiliates/', include('apps.affiliates.urls')),
     path('api/core/', include('apps.core.urls')),
     
-    # Embed routes (separate from API)
-    path('embed/<uuid:form_id>/', EmbedFormView.as_view(), name='embed_form'),
-    path('embed/<uuid:form_id>/submit/', FormSubmissionView.as_view(), name='form_submit'),
+    # Embed routes - LAZY IMPORT TO AVOID CIRCULAR DEPENDENCY
+    path('embed/<uuid:form_id>/', lambda request, form_id: 
+         __import__('apps.forms.views', fromlist=['EmbedFormView']).EmbedFormView.as_view()(request, form_id=form_id), 
+         name='embed_form'),
+    path('embed/<uuid:form_id>/submit/', lambda request, form_id: 
+         __import__('apps.forms.views', fromlist=['FormSubmissionView']).FormSubmissionView.as_view()(request, form_id=form_id), 
+         name='form_submit'),
 ]
 
 # Static files serving - CRITICAL ORDER
