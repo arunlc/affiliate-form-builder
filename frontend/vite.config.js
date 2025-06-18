@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  base: '/static/',  // ADDED: This makes React use /static/ instead of /assets/
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
