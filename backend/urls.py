@@ -1,11 +1,15 @@
-# backend/urls.py - FINAL FIX WITH STATIC FILES
+# backend/urls.py - FINAL FIX WITH BETTER ERROR HANDLING
 
 from django.contrib import admin
 from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-from django.http import HttpResponse, FileResponse
+from django.http import HttpResponse, FileResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 def serve_react_app(request):
     """Serve React app index.html"""
@@ -13,8 +17,8 @@ def serve_react_app(request):
         index_path = os.path.join(settings.STATIC_ROOT, 'index.html')
         if os.path.exists(index_path):
             return FileResponse(open(index_path, 'rb'), content_type='text/html')
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Error serving React app: {e}")
     
     # Fallback HTML
     return HttpResponse("""
@@ -29,13 +33,33 @@ def serve_react_app(request):
         <h1>🚀 Affiliate Form Builder</h1>
         <p>Loading...</p>
         <p><a href="/admin">Admin Panel</a></p>
+        <div style="margin-top: 40px; padding: 20px; background: #f8f9fa; border-radius: 8px; max-width: 600px; margin-left: auto; margin-right: auto;">
+            <h3>Test Accounts:</h3>
+            <p>Affiliate: <code>affiliate1 / affiliate123</code></p>
+            <p>Operations: <code>operations / ops123</code></p>
+        </div>
     </body>
     </html>
     """, content_type='text/html')
 
+@csrf_exempt
+def api_debug_view(request):
+    """Debug view to help troubleshoot API issues"""
+    return JsonResponse({
+        'message': 'API is working',
+        'method': request.method,
+        'path': request.path,
+        'user': str(request.user) if hasattr(request, 'user') else 'Anonymous',
+        'content_type': request.content_type,
+        'data_keys': list(request.POST.keys()) if request.method == 'POST' else None
+    })
+
 urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
+    
+    # API debug endpoint
+    path('api/debug/', api_debug_view, name='api_debug'),
     
     # API routes
     path('api/auth/', include('apps.users.urls')),
