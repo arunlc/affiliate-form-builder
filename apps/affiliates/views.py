@@ -1,4 +1,4 @@
-# apps/affiliates/views.py - Updated with form assignment management
+# apps/affiliates/views.py - FIXED VERSION
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -24,34 +24,171 @@ class AffiliateViewSet(viewsets.ModelViewSet):
         # Only admins can manage affiliates
         if self.request.user.user_type == 'admin':
             return Affiliate.objects.select_related('user').prefetch_related(
-                'assigned_forms', 'leads'
+                'affiliateformassignment_set__form', 'leads'
             ).order_by('-created_at')
         return Affiliate.objects.none()
     
     def perform_create(self, serializer):
-        # Create user account for affiliate if it doesn't exist
-        from django.contrib.auth import get_user_model
-        User = get_user_model()
-        
-        user_name = self.request.data.get('user_name')
-        email = self.request.data.get('email', '')
-        
-        # Check if user already exists
-        user, created = User.objects.get_or_create(
-            username=user_name,
-            defaults={
-                'email': email,
-                'user_type': 'affiliate',
-                'affiliate_id': self.request.data.get('affiliate_code')
+        """Create affiliate with proper user handling"""
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            # Get data from request
+            user_name = self.request.data.get('user_name')
+            email = self.request.data.get('email', '')
+            affiliate_code = self.request.data.get('affiliate_code')
+            
+            logger.info(f"Creating affiliate: {user_name}, {email}, {affiliate_code}")
+            
+            # Validate required fields
+            if not user_name:
+                raise ValueError("Username is required")
+            if not affiliate_code:
+                raise ValueError("Affiliate code is required")
+            
+            # Check if user already exists
+            try:
+                user = User.objects.get(username=user_name)
+                logger.info(f"User {user_name} already exists, updating...")
+                # Update existing user
+                if email:
+                    user.email = email
+                user.user_type = 'affiliate'
+                user.affiliate_id = affiliate_code
+                user.save()
+            except User.DoesNotExist:
+                logger.info(f"Creating new user: {user_name}")
+                # Create new user
+                user = User.objects.create_user(
+                    username=user_name,
+                    email=email,
+                    password='changeme123',  # Default password
+                    user_type='affiliate',
+                    affiliate_id=affiliate_code
+                )
+            
+            # Check if affiliate already exists for this user
+            if Affiliate.objects.filter(user=user).exists():
+                raise ValueError(f"Affiliate already exists for user {user_name}")
+            
+            # Save the affiliate with the user
+            serializer.save(user=user)
+            logger.info(f"Affiliate created successfully: {affiliate_code}")
+            
+        except Exception as e:
+            logger.error(f"Error creating affiliate: {str(e)}")
+            raise
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to handle validation errors properly"""
+        try:
+            # Log the incoming data
+            logger.info(f"Affiliate creation request data: {request.data}")
+            
+            # Validate required fields before serialization
+            user_name = request.data.get('user_name')
+            affiliate_code = request.data.get('affiliate_code')
+            
+            if not user_name:
+                return Response(
+                    {'error': 'Username is required', 'field': 'user_name'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            if not affiliate_code:
+                return Response(
+                    {'error': 'Affiliate code is required', 'field': 'affiliate_code'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if affiliate code already exists
+            if Affiliate.objects.filter(affiliate_code=affiliate_code).exists():
+                return Response(
+                    {'error': f'Affiliate code "{affiliate_code}" already exists', 'field': 'affiliate_code'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create serializer with data (excluding user fields)
+            affiliate_data = {
+                'affiliate_code': affiliate_code,
+                'company_name': request.data.get('company_name', ''),
+                'website': request.data.get('website', ''),
+                'is_active': request.data.get('is_active', True)
             }
-        )
-        
-        if created:
-            # Set a default password (should be changed on first login)
-            user.set_password('changeme123')
-            user.save()
-        
-        serializer.save(user=user)
+            
+            serializer = self.get_serializer(data=affiliate_data)
+            serializer.is_valid(raise_exception=True)
+            
+            # Perform create
+            self.perform_create(serializer)
+            
+            headers = self.get_success_headers(serializer.data)
+            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+            
+        except ValueError as e:
+            logger.error(f"Validation error: {str(e)}")
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f"Unexpected error in affiliate creation: {str(e)}")
+            return Response(
+                {'error': 'An error occurred while creating the affiliate'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def update(self, request, *args, **kwargs):
+        """Override update to handle partial updates properly"""
+        try:
+            partial = kwargs.pop('partial', False)
+            instance = self.get_object()
+            
+            # Prepare data for update (exclude user fields from direct update)
+            affiliate_data = {
+                'affiliate_code': request.data.get('affiliate_code', instance.affiliate_code),
+                'company_name': request.data.get('company_name', instance.company_name),
+                'website': request.data.get('website', instance.website),
+                'is_active': request.data.get('is_active', instance.is_active)
+            }
+            
+            # Update user fields separately if provided
+            user_name = request.data.get('user_name')
+            email = request.data.get('email')
+            
+            if user_name and user_name != instance.user.username:
+                # Check if new username is available
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                if User.objects.filter(username=user_name).exclude(id=instance.user.id).exists():
+                    return Response(
+                        {'error': f'Username "{user_name}" is already taken', 'field': 'user_name'}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                instance.user.username = user_name
+            
+            if email is not None:
+                instance.user.email = email
+            
+            instance.user.save()
+            
+            # Update affiliate
+            serializer = self.get_serializer(instance, data=affiliate_data, partial=partial)
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+
+            if getattr(instance, '_prefetched_objects_cache', None):
+                instance._prefetched_objects_cache = {}
+
+            return Response(serializer.data)
+            
+        except Exception as e:
+            logger.error(f"Error updating affiliate: {str(e)}")
+            return Response(
+                {'error': 'An error occurred while updating the affiliate'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
     
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
@@ -66,7 +203,7 @@ class AffiliateViewSet(viewsets.ModelViewSet):
             ).count()
             conversion_rate = (total_conversions / total_leads * 100) if total_leads > 0 else 0
             
-            # Revenue estimation (you can customize this based on your commission structure)
+            # Revenue estimation
             closed_won = affiliate.leads.filter(status='closed_won').count()
             estimated_revenue = closed_won * 100  # $100 per conversion example
             
@@ -90,12 +227,7 @@ class AffiliateViewSet(viewsets.ModelViewSet):
                 status__in=['qualified', 'demo_completed', 'closed_won']
             ).count()
             
-            # Top performing sources
-            top_sources = affiliate.leads.values('utm_source').annotate(
-                count=Count('id')
-            ).order_by('-count')[:5]
-            
-            # Form performance for assigned forms
+            # Form performance
             form_performance = []
             for assignment in affiliate.affiliateformassignment_set.filter(is_active=True):
                 form = assignment.form
@@ -113,20 +245,6 @@ class AffiliateViewSet(viewsets.ModelViewSet):
                     'conversion_rate': (form_conversions / form_leads * 100) if form_leads > 0 else 0
                 })
             
-            # Monthly performance for the last 6 months
-            monthly_performance = []
-            for i in range(6):
-                month_date = now.replace(day=1) - timedelta(days=30*i)
-                month_end = (month_date + timedelta(days=32)).replace(day=1) - timedelta(days=1)
-                month_leads = affiliate.leads.filter(
-                    created_at__gte=month_date,
-                    created_at__lte=month_end
-                ).count()
-                monthly_performance.append({
-                    'month': month_date.strftime('%b %Y'),
-                    'leads': month_leads
-                })
-            
             return Response({
                 'affiliate_id': str(affiliate.id),
                 'affiliate_code': affiliate.affiliate_code,
@@ -138,12 +256,10 @@ class AffiliateViewSet(viewsets.ModelViewSet):
                 'monthly_conversions': monthly_conversions,
                 'weekly_leads': weekly_leads,
                 'weekly_conversions': weekly_conversions,
-                'top_sources': list(top_sources),
                 'form_performance': form_performance,
-                'monthly_performance': monthly_performance[::-1],  # Reverse for chronological order
                 'join_date': affiliate.created_at,
                 'is_active': affiliate.is_active,
-                'assigned_forms_count': affiliate.assigned_forms.filter(is_active=True).count()
+                'assigned_forms_count': affiliate.affiliateformassignment_set.filter(is_active=True).count()
             })
         except Exception as e:
             logger.error(f"Error getting affiliate stats: {e}")
@@ -180,7 +296,7 @@ class AffiliateViewSet(viewsets.ModelViewSet):
             
             # Serialize leads
             from apps.leads.serializers import LeadSerializer
-            leads = queryset.order_by('-created_at')[:50]  # Limit to 50 most recent
+            leads = queryset.order_by('-created_at')[:50]
             
             return Response({
                 'affiliate_code': affiliate.affiliate_code,
@@ -216,7 +332,7 @@ class AffiliateViewSet(viewsets.ModelViewSet):
                     'conversion_rate': assignment.conversion_rate
                 })
             
-            # Also get available forms not assigned
+            # Get available forms not assigned
             assigned_form_ids = [a.form.id for a in assignments if a.is_active]
             available_forms = Form.objects.filter(
                 is_active=True
@@ -270,6 +386,7 @@ class AffiliateViewSet(viewsets.ModelViewSet):
                 logger.error(f"Error updating form assignments: {e}")
                 return Response({'error': str(e)}, status=500)
 
+
 class AffiliateStatsView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -281,7 +398,6 @@ class AffiliateStatsView(APIView):
         try:
             affiliate = Affiliate.objects.get(id=affiliate_id)
             
-            # Calculate comprehensive stats
             stats = {
                 'affiliate_id': str(affiliate.id),
                 'affiliate_code': affiliate.affiliate_code,
@@ -289,7 +405,6 @@ class AffiliateStatsView(APIView):
                 'total_conversions': affiliate.leads.filter(
                     status__in=['qualified', 'demo_completed', 'closed_won']
                 ).count(),
-                'assigned_forms': affiliate.assigned_forms.filter(is_active=True).count(),
                 'active_assignments': affiliate.affiliateformassignment_set.filter(is_active=True).count()
             }
             
@@ -299,6 +414,7 @@ class AffiliateStatsView(APIView):
         except Exception as e:
             logger.error(f"Error getting affiliate stats: {e}")
             return Response({'error': str(e)}, status=500)
+
 
 class AffiliateLeadsView(APIView):
     permission_classes = [IsAuthenticated]
@@ -324,6 +440,7 @@ class AffiliateLeadsView(APIView):
             logger.error(f"Error getting affiliate leads: {e}")
             return Response({'error': str(e)}, status=500)
 
+
 class FormAssignmentBulkView(APIView):
     """Bulk assign forms to multiple affiliates (Admin only)"""
     permission_classes = [IsAuthenticated]
@@ -335,7 +452,7 @@ class FormAssignmentBulkView(APIView):
         try:
             affiliate_ids = request.data.get('affiliate_ids', [])
             form_ids = request.data.get('form_ids', [])
-            action = request.data.get('action', 'assign')  # 'assign' or 'unassign'
+            action = request.data.get('action', 'assign')
             
             results = []
             
