@@ -1,8 +1,10 @@
-# apps/affiliates/models.py - FIXED WITH MISSING MODEL
+# apps/affiliates/models.py - ENHANCED WITH DEBUGGING
 from django.db import models
 from django.contrib.auth import get_user_model
 import uuid
+import logging
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 class Affiliate(models.Model):
@@ -20,17 +22,35 @@ class Affiliate(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    class Meta:
+        db_table = 'affiliates_affiliate'
+        verbose_name = 'Affiliate'
+        verbose_name_plural = 'Affiliates'
+    
     def __str__(self):
-        return f"{self.user.username} - {self.affiliate_code}"
+        try:
+            return f"{self.user.username} - {self.affiliate_code}"
+        except:
+            return f"Affiliate {self.affiliate_code}"
     
     @property
     def conversion_rate(self):
         if self.total_leads > 0:
             return (self.total_conversions / self.total_leads) * 100
         return 0
+    
+    def save(self, *args, **kwargs):
+        """Override save to add logging"""
+        is_new = self.pk is None
+        logger.info(f"{'Creating' if is_new else 'Updating'} affiliate: {self.affiliate_code}")
+        try:
+            super().save(*args, **kwargs)
+            logger.info(f"Affiliate {self.affiliate_code} saved successfully")
+        except Exception as e:
+            logger.error(f"Error saving affiliate {self.affiliate_code}: {e}")
+            raise
 
 
-# MISSING MODEL - This was causing the import error
 class AffiliateFormAssignment(models.Model):
     """Through model for affiliate-form assignments"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -47,6 +67,9 @@ class AffiliateFormAssignment(models.Model):
     class Meta:
         unique_together = ['affiliate', 'form']
         ordering = ['-assigned_at']
+        db_table = 'affiliates_affiliateformassignment'
+        verbose_name = 'Affiliate Form Assignment'
+        verbose_name_plural = 'Affiliate Form Assignments'
     
     def __str__(self):
         return f"{self.affiliate.affiliate_code} - {self.form.name}"
@@ -59,24 +82,29 @@ class AffiliateFormAssignment(models.Model):
     
     def update_stats(self):
         """Update performance statistics for this assignment"""
-        from apps.leads.models import Lead
-        
-        # Count leads for this affiliate-form combination
-        leads_count = Lead.objects.filter(
-            affiliate=self.affiliate,
-            form=self.form
-        ).count()
-        
-        # Count conversions (qualified leads)
-        conversions_count = Lead.objects.filter(
-            affiliate=self.affiliate,
-            form=self.form,
-            status__in=['qualified', 'demo_completed', 'closed_won']
-        ).count()
-        
-        # Update the stats
-        self.leads_generated = leads_count
-        self.conversions = conversions_count
-        self.save(update_fields=['leads_generated', 'conversions'])
-        
-        return self
+        try:
+            from apps.leads.models import Lead
+            
+            # Count leads for this affiliate-form combination
+            leads_count = Lead.objects.filter(
+                affiliate=self.affiliate,
+                form=self.form
+            ).count()
+            
+            # Count conversions (qualified leads)
+            conversions_count = Lead.objects.filter(
+                affiliate=self.affiliate,
+                form=self.form,
+                status__in=['qualified', 'demo_completed', 'closed_won']
+            ).count()
+            
+            # Update the stats
+            self.leads_generated = leads_count
+            self.conversions = conversions_count
+            self.save(update_fields=['leads_generated', 'conversions'])
+            
+            logger.info(f"Updated stats for {self}: {leads_count} leads, {conversions_count} conversions")
+            return self
+        except Exception as e:
+            logger.error(f"Error updating stats for {self}: {e}")
+            return self
