@@ -1,5 +1,7 @@
-# apps/affiliates/serializers.py - FIXED VERSION
+# apps/affiliates/serializers.py - Enhanced with Password Support
 from rest_framework import serializers
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from .models import Affiliate, AffiliateFormAssignment
 
 class AffiliateFormAssignmentSerializer(serializers.ModelSerializer):
@@ -47,10 +49,8 @@ class AffiliateSerializer(serializers.ModelSerializer):
     
     def validate_affiliate_code(self, value):
         """Validate affiliate code uniqueness"""
-        # Get the instance if we're updating
         instance = self.instance
         
-        # Check if this code already exists for a different affiliate
         queryset = Affiliate.objects.filter(affiliate_code=value)
         if instance:
             queryset = queryset.exclude(pk=instance.pk)
@@ -97,7 +97,6 @@ class AffiliateSerializer(serializers.ModelSerializer):
             from django.utils import timezone
             from datetime import timedelta
             
-            # Last 30 days
             thirty_days_ago = timezone.now() - timedelta(days=30)
             recent_leads = obj.leads.filter(created_at__gte=thirty_days_ago).count()
             recent_conversions = obj.leads.filter(
@@ -116,52 +115,173 @@ class AffiliateSerializer(serializers.ModelSerializer):
                 'conversions_last_30_days': 0,
                 'conversion_rate_last_30_days': 0
             }
+
+class AffiliateCreateSerializer(serializers.ModelSerializer):
+    """Enhanced serializer for creating affiliates with user and password"""
+    user_name = serializers.CharField(write_only=True, required=True)
+    email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    send_credentials = serializers.BooleanField(write_only=True, default=False)
     
-    def to_representation(self, instance):
-        """Custom representation to handle any missing relationships"""
-        try:
-            data = super().to_representation(instance)
+    class Meta:
+        model = Affiliate
+        fields = [
+            'user_name', 'email', 'phone', 'password', 'send_credentials',
+            'affiliate_code', 'company_name', 'website', 'is_active'
+        ]
+    
+    def validate_user_name(self, value):
+        """Validate username uniqueness"""
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError(f"Username '{value}' is already taken")
+        return value
+    
+    def validate_password(self, value):
+        """Validate password if provided"""
+        if value:
+            try:
+                validate_password(value)
+            except ValidationError as e:
+                raise serializers.ValidationError(e.messages)
+        return value
+    
+    def validate_affiliate_code(self, value):
+        """Validate affiliate code uniqueness"""
+        if Affiliate.objects.filter(affiliate_code=value).exists():
+            raise serializers.ValidationError(
+                f"Affiliate code '{value}' already exists"
+            )
+        return value
+    
+    def create(self, validated_data):
+        from django.contrib.auth import get_user_model
+        from django.core.mail import send_mail
+        from django.conf import settings
+        import secrets
+        import string
+        
+        User = get_user_model()
+        
+        # Extract user-related fields
+        user_name = validated_data.pop('user_name')
+        email = validated_data.pop('email', '')
+        phone = validated_data.pop('phone', '')
+        password = validated_data.pop('password', '')
+        send_credentials = validated_data.pop('send_credentials', False)
+        
+        # Generate password if not provided
+        if not password:
+            # Generate secure random password
+            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+            password = ''.join(secrets.choice(alphabet) for _ in range(12))
+        
+        # Create user
+        user = User.objects.create_user(
+            username=user_name,
+            email=email,
+            password=password,
+            user_type='affiliate',
+            affiliate_id=validated_data['affiliate_code']
+        )
+        
+        # Create affiliate
+        affiliate = Affiliate.objects.create(
+            user=user,
+            **validated_data
+        )
+        
+        # Send credentials via email if requested and email is provided
+        if send_credentials and email:
+            try:
+                subject = 'Your Affiliate Account Credentials'
+                message = f"""
+                Welcome to our Affiliate Program!
+                
+                Your account has been created with the following credentials:
+                
+                Username: {user_name}
+                Password: {password}
+                Affiliate Code: {validated_data['affiliate_code']}
+                
+                Please login at: {settings.FRONTEND_URL}/login
+                
+                For security, please change your password after your first login.
+                
+                Best regards,
+                The Team
+                """
+                
+                send_mail(
+                    subject,
+                    message,
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=True,
+                )
+            except Exception as e:
+                # Don't fail affiliate creation if email fails
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send credentials email: {e}")
+        
+        return affiliate
+
+class AffiliateUpdateSerializer(serializers.ModelSerializer):
+    """Enhanced serializer for updating affiliates"""
+    user_name = serializers.CharField(required=False, allow_blank=True)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    
+    class Meta:
+        model = Affiliate
+        fields = [
+            'user_name', 'email', 'affiliate_code', 'company_name', 
+            'website', 'is_active'
+        ]
+    
+    def validate_user_name(self, value):
+        """Validate username uniqueness for updates"""
+        if value:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
             
-            # Ensure all fields have default values
-            data.setdefault('user_name', instance.user.username if instance.user else 'Unknown')
-            data.setdefault('email', instance.user.email if instance.user else '')
-            data.setdefault('total_leads', 0)
-            data.setdefault('total_conversions', 0)
-            data.setdefault('conversion_rate', 0.0)
-            data.setdefault('assigned_forms_count', 0)
-            data.setdefault('active_assignments', [])
-            data.setdefault('recent_performance', {
-                'leads_last_30_days': 0,
-                'conversions_last_30_days': 0,
-                'conversion_rate_last_30_days': 0
-            })
+            # Exclude current user from check
+            queryset = User.objects.filter(username=value)
+            if self.instance and self.instance.user:
+                queryset = queryset.exclude(id=self.instance.user.id)
             
-            return data
-        except Exception as e:
-            # Log the error but don't crash
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Error in affiliate serialization: {e}")
+            if queryset.exists():
+                raise serializers.ValidationError(f"Username '{value}' is already taken")
+        return value
+    
+    def validate_affiliate_code(self, value):
+        """Validate affiliate code uniqueness for updates"""
+        if value:
+            queryset = Affiliate.objects.filter(affiliate_code=value)
+            if self.instance:
+                queryset = queryset.exclude(pk=self.instance.pk)
             
-            # Return minimal safe data
-            return {
-                'id': str(instance.id),
-                'affiliate_code': instance.affiliate_code,
-                'company_name': instance.company_name or '',
-                'website': instance.website or '',
-                'is_active': instance.is_active,
-                'created_at': instance.created_at,
-                'updated_at': instance.updated_at,
-                'user_name': 'Unknown',
-                'email': '',
-                'total_leads': 0,
-                'total_conversions': 0,
-                'conversion_rate': 0.0,
-                'assigned_forms_count': 0,
-                'active_assignments': [],
-                'recent_performance': {
-                    'leads_last_30_days': 0,
-                    'conversions_last_30_days': 0,
-                    'conversion_rate_last_30_days': 0
-                }
-            }
+            if queryset.exists():
+                raise serializers.ValidationError(
+                    f"Affiliate code '{value}' already exists"
+                )
+        return value
+    
+    def update(self, instance, validated_data):
+        # Update user fields if provided
+        user_name = validated_data.pop('user_name', None)
+        email = validated_data.pop('email', None)
+        
+        if user_name:
+            instance.user.username = user_name
+        if email is not None:
+            instance.user.email = email
+        
+        if user_name or email is not None:
+            instance.user.save()
+        
+        # Update affiliate fields
+        return super().update(instance, validated_data)
