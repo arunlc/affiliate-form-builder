@@ -1,4 +1,4 @@
-// frontend/src/services/api.js - Enhanced with missing methods
+// frontend/src/services/api.js - Enhanced with Password Management
 import axios from 'axios'
 
 // Detect environment and set API URL
@@ -85,11 +85,27 @@ api.interceptors.response.use(
   }
 )
 
-// Authentication API
+// Enhanced Authentication API
 export const authAPI = {
   login: (credentials) => api.post('/auth/login/', credentials),
   logout: () => api.post('/auth/logout/'),
   getProfile: () => api.get('/auth/profile/'),
+  updateProfile: (data) => api.put('/auth/profile/', data),
+  
+  // Password management
+  changePassword: (passwordData) => api.post('/auth/change-password/', passwordData),
+  setUserPassword: (passwordData) => api.post('/auth/set-password/', passwordData),
+  
+  // Password reset
+  requestPasswordReset: (data) => api.post('/auth/password-reset/', data),
+  confirmPasswordReset: (token, data) => api.post(`/auth/password-reset-confirm/${token}/`, data),
+  
+  // User management (admin only)
+  createUser: (userData) => api.post('/auth/create-user/', userData),
+  getUsers: (params = {}) => api.get('/auth/users/', { params }),
+  getUser: (id) => api.get(`/auth/users/${id}/`),
+  updateUser: (id, data) => api.put(`/auth/users/${id}/`, data),
+  deleteUser: (id) => api.delete(`/auth/users/${id}/`),
 }
 
 export const formsAPI = {
@@ -162,15 +178,31 @@ export const leadsAPI = {
   deleteLeadNote: (leadId, noteId) => api.delete(`/leads/leads/${leadId}/notes/${noteId}/`),
 }
 
-// Affiliates API
+// Enhanced Affiliates API with Password Management
 export const affiliatesAPI = {
   getAffiliates: (params = {}) => api.get('/affiliates/affiliates/', { params }),
   getAffiliate: (id) => api.get(`/affiliates/affiliates/${id}/`),
+  
+  // Enhanced create affiliate with password support
   createAffiliate: (data) => api.post('/affiliates/affiliates/', data),
+  
   updateAffiliate: (id, data) => api.put(`/affiliates/affiliates/${id}/`, data),
   deleteAffiliate: (id) => api.delete(`/affiliates/affiliates/${id}/`),
+  
+  // Password management for affiliates
+  resetAffiliatePassword: (id, data) => api.post(`/affiliates/affiliates/${id}/reset_password/`, data),
+  sendCredentials: (id) => api.post(`/affiliates/affiliates/${id}/send_credentials/`),
+  
+  // Stats and leads
   getAffiliateStats: (id, params = {}) => api.get(`/affiliates/affiliates/${id}/stats/`, { params }),
   getAffiliateLeads: (id, params = {}) => api.get(`/affiliates/affiliates/${id}/leads/`, { params }),
+  
+  // Form assignments
+  getFormAssignments: (id) => api.get(`/affiliates/affiliates/${id}/form_assignments/`),
+  updateFormAssignments: (id, data) => api.post(`/affiliates/affiliates/${id}/form_assignments/`, data),
+  
+  // Bulk operations
+  bulkAssignForms: (data) => api.post('/affiliates/bulk-assign/', data),
 }
 
 // Core/Dashboard API
@@ -235,6 +267,40 @@ export const apiUtils = {
       return error.message
     }
     return 'An unexpected error occurred'
+  },
+  
+  // Validate password strength
+  validatePassword: (password) => {
+    const minLength = 8
+    const hasUpper = /[A-Z]/.test(password)
+    const hasLower = /[a-z]/.test(password)
+    const hasNumber = /\d/.test(password)
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    
+    const issues = []
+    
+    if (password.length < minLength) {
+      issues.push(`Password must be at least ${minLength} characters long`)
+    }
+    if (!hasUpper) {
+      issues.push('Password must contain at least one uppercase letter')
+    }
+    if (!hasLower) {
+      issues.push('Password must contain at least one lowercase letter')
+    }
+    if (!hasNumber) {
+      issues.push('Password must contain at least one number')
+    }
+    if (!hasSpecial) {
+      issues.push('Password must contain at least one special character')
+    }
+    
+    return {
+      isValid: issues.length === 0,
+      issues,
+      strength: issues.length === 0 ? 'strong' : 
+                issues.length <= 2 ? 'medium' : 'weak'
+    }
   }
 }
 
