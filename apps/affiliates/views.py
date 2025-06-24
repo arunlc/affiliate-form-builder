@@ -1,4 +1,4 @@
-# apps/affiliates/views.py - FIXED VERSION
+# apps/affiliates/views.py - Enhanced with Password Management
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -8,7 +8,9 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
 from .models import Affiliate, AffiliateFormAssignment
-from .serializers import AffiliateSerializer
+from .serializers import (
+    AffiliateSerializer, AffiliateCreateSerializer, AffiliateUpdateSerializer
+)
 from apps.leads.models import Lead
 from apps.forms.models import Form
 import logging
@@ -16,9 +18,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AffiliateViewSet(viewsets.ModelViewSet):
-    serializer_class = AffiliateSerializer
     permission_classes = [IsAuthenticated]
     queryset = Affiliate.objects.all()
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return AffiliateCreateSerializer
+        elif self.action in ['update', 'partial_update']:
+            return AffiliateUpdateSerializer
+        return AffiliateSerializer
     
     def get_queryset(self):
         # Only admins can manage affiliates
@@ -28,167 +36,201 @@ class AffiliateViewSet(viewsets.ModelViewSet):
             ).order_by('-created_at')
         return Affiliate.objects.none()
     
-    def perform_create(self, serializer):
-        """Create affiliate with proper user handling"""
+    def create(self, request, *args, **kwargs):
+        """Create affiliate with enhanced user handling and password management"""
         try:
-            from django.contrib.auth import get_user_model
-            User = get_user_model()
+            logger.info(f"Creating affiliate with data: {request.data}")
             
-            # Get data from request
-            user_name = self.request.data.get('user_name')
-            email = self.request.data.get('email', '')
-            affiliate_code = self.request.data.get('affiliate_code')
+            serializer = self.get_serializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
             
-            logger.info(f"Creating affiliate: {user_name}, {email}, {affiliate_code}")
+            affiliate = serializer.save()
             
-            # Validate required fields
-            if not user_name:
-                raise ValueError("Username is required")
-            if not affiliate_code:
-                raise ValueError("Affiliate code is required")
+            # Return the affiliate with the standard serializer
+            response_serializer = AffiliateSerializer(affiliate)
             
-            # Check if user already exists
-            try:
-                user = User.objects.get(username=user_name)
-                logger.info(f"User {user_name} already exists, updating...")
-                # Update existing user
-                if email:
-                    user.email = email
-                user.user_type = 'affiliate'
-                user.affiliate_id = affiliate_code
-                user.save()
-            except User.DoesNotExist:
-                logger.info(f"Creating new user: {user_name}")
-                # Create new user
-                user = User.objects.create_user(
-                    username=user_name,
-                    email=email,
-                    password='changeme123',  # Default password
-                    user_type='affiliate',
-                    affiliate_id=affiliate_code
-                )
-            
-            # Check if affiliate already exists for this user
-            if Affiliate.objects.filter(user=user).exists():
-                raise ValueError(f"Affiliate already exists for user {user_name}")
-            
-            # Save the affiliate with the user
-            serializer.save(user=user)
-            logger.info(f"Affiliate created successfully: {affiliate_code}")
+            return Response({
+                'data': response_serializer.data,
+                'message': 'Affiliate created successfully!'
+            }, status=status.HTTP_201_CREATED)
             
         except Exception as e:
             logger.error(f"Error creating affiliate: {str(e)}")
-            raise
-    
-    def create(self, request, *args, **kwargs):
-        """Override create to handle validation errors properly"""
-        try:
-            # Log the incoming data
-            logger.info(f"Affiliate creation request data: {request.data}")
-            
-            # Validate required fields before serialization
-            user_name = request.data.get('user_name')
-            affiliate_code = request.data.get('affiliate_code')
-            
-            if not user_name:
-                return Response(
-                    {'error': 'Username is required', 'field': 'user_name'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            if not affiliate_code:
-                return Response(
-                    {'error': 'Affiliate code is required', 'field': 'affiliate_code'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Check if affiliate code already exists
-            if Affiliate.objects.filter(affiliate_code=affiliate_code).exists():
-                return Response(
-                    {'error': f'Affiliate code "{affiliate_code}" already exists', 'field': 'affiliate_code'}, 
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            
-            # Create serializer with data (excluding user fields)
-            affiliate_data = {
-                'affiliate_code': affiliate_code,
-                'company_name': request.data.get('company_name', ''),
-                'website': request.data.get('website', ''),
-                'is_active': request.data.get('is_active', True)
-            }
-            
-            serializer = self.get_serializer(data=affiliate_data)
-            serializer.is_valid(raise_exception=True)
-            
-            # Perform create
-            self.perform_create(serializer)
-            
-            headers = self.get_success_headers(serializer.data)
-            return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-            
-        except ValueError as e:
-            logger.error(f"Validation error: {str(e)}")
-            return Response(
-                {'error': str(e)}, 
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error in affiliate creation: {str(e)}")
-            return Response(
-                {'error': 'An error occurred while creating the affiliate'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            return Response({
+                'error': 'Failed to create affiliate',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     def update(self, request, *args, **kwargs):
-        """Override update to handle partial updates properly"""
+        """Update affiliate with enhanced user handling"""
         try:
             partial = kwargs.pop('partial', False)
             instance = self.get_object()
             
-            # Prepare data for update (exclude user fields from direct update)
-            affiliate_data = {
-                'affiliate_code': request.data.get('affiliate_code', instance.affiliate_code),
-                'company_name': request.data.get('company_name', instance.company_name),
-                'website': request.data.get('website', instance.website),
-                'is_active': request.data.get('is_active', instance.is_active)
-            }
-            
-            # Update user fields separately if provided
-            user_name = request.data.get('user_name')
-            email = request.data.get('email')
-            
-            if user_name and user_name != instance.user.username:
-                # Check if new username is available
-                from django.contrib.auth import get_user_model
-                User = get_user_model()
-                if User.objects.filter(username=user_name).exclude(id=instance.user.id).exists():
-                    return Response(
-                        {'error': f'Username "{user_name}" is already taken', 'field': 'user_name'}, 
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                instance.user.username = user_name
-            
-            if email is not None:
-                instance.user.email = email
-            
-            instance.user.save()
-            
-            # Update affiliate
-            serializer = self.get_serializer(instance, data=affiliate_data, partial=partial)
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
             serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-
-            if getattr(instance, '_prefetched_objects_cache', None):
-                instance._prefetched_objects_cache = {}
-
-            return Response(serializer.data)
+            
+            affiliate = serializer.save()
+            
+            # Return updated affiliate data
+            response_serializer = AffiliateSerializer(affiliate)
+            
+            return Response({
+                'data': response_serializer.data,
+                'message': 'Affiliate updated successfully!'
+            })
             
         except Exception as e:
             logger.error(f"Error updating affiliate: {str(e)}")
-            return Response(
-                {'error': 'An error occurred while updating the affiliate'}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            return Response({
+                'error': 'Failed to update affiliate',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        """Reset password for an affiliate (Admin only)"""
+        if request.user.user_type != 'admin':
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            affiliate = self.get_object()
+            password = request.data.get('password')
+            send_email = request.data.get('send_email', False)
+            
+            if not password:
+                # Generate a secure random password
+                import secrets
+                import string
+                alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+                password = ''.join(secrets.choice(alphabet) for _ in range(12))
+            
+            # Update user password
+            affiliate.user.set_password(password)
+            affiliate.user.save()
+            
+            # Invalidate existing tokens
+            from rest_framework.authtoken.models import Token
+            Token.objects.filter(user=affiliate.user).delete()
+            
+            # Send email if requested and user has email
+            if send_email and affiliate.user.email:
+                try:
+                    from django.core.mail import send_mail
+                    from django.conf import settings
+                    
+                    subject = 'Your Password Has Been Reset'
+                    message = f"""
+                    Hello {affiliate.user.username},
+                    
+                    Your password has been reset by an administrator.
+                    
+                    New Password: {password}
+                    
+                    Please login and change your password for security.
+                    
+                    Login URL: {settings.FRONTEND_URL}/login
+                    
+                    Best regards,
+                    The Team
+                    """
+                    
+                    send_mail(
+                        subject,
+                        message,
+                        settings.DEFAULT_FROM_EMAIL,
+                        [affiliate.user.email],
+                        fail_silently=False,
+                    )
+                    
+                    return Response({
+                        'message': 'Password reset successfully and email sent',
+                        'password': password if not send_email else None
+                    })
+                except Exception as e:
+                    logger.error(f"Failed to send password reset email: {e}")
+                    return Response({
+                        'message': 'Password reset successfully but email failed to send',
+                        'password': password,
+                        'email_error': str(e)
+                    })
+            
+            return Response({
+                'message': 'Password reset successfully',
+                'password': password
+            })
+            
+        except Exception as e:
+            logger.error(f"Error resetting affiliate password: {e}")
+            return Response({
+                'error': 'Failed to reset password',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'])
+    def send_credentials(self, request, pk=None):
+        """Send login credentials to affiliate via email (Admin only)"""
+        if request.user.user_type != 'admin':
+            return Response({'error': 'Admin access required'}, status=status.HTTP_403_FORBIDDEN)
+        
+        try:
+            affiliate = self.get_object()
+            
+            if not affiliate.user.email:
+                return Response({
+                    'error': 'Affiliate has no email address'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Generate new password
+            import secrets
+            import string
+            alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+            new_password = ''.join(secrets.choice(alphabet) for _ in range(12))
+            
+            # Update password
+            affiliate.user.set_password(new_password)
+            affiliate.user.save()
+            
+            # Send email
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            subject = 'Your Affiliate Account Credentials'
+            message = f"""
+            Hello {affiliate.user.username},
+            
+            Here are your updated login credentials:
+            
+            Username: {affiliate.user.username}
+            Password: {new_password}
+            Affiliate Code: {affiliate.affiliate_code}
+            
+            Login URL: {settings.FRONTEND_URL}/login
+            
+            Please change your password after logging in for security.
+            
+            Best regards,
+            The Team
+            """
+            
+            send_mail(
+                subject,
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [affiliate.user.email],
+                fail_silently=False,
             )
+            
+            return Response({
+                'message': f'Credentials sent to {affiliate.user.email}'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error sending credentials: {e}")
+            return Response({
+                'error': 'Failed to send credentials',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['get'])
     def stats(self, request, pk=None):
