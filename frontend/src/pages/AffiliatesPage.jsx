@@ -1,4 +1,4 @@
-// frontend/src/pages/AffiliatesPage.jsx - New Table View with Form Assignment
+// AffiliatesPage.jsx - Part 1: Imports and AffiliateModal Component
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from 'react-query'
 import Layout from '../components/Layout'
@@ -28,7 +28,7 @@ import {
   Phone
 } from 'lucide-react'
 
-// Affiliate Modal Component
+// Affiliate Modal Component - FIXED VERSION
 const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
   const [formData, setFormData] = useState({
     user_name: '',
@@ -87,7 +87,7 @@ const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
       newErrors.email = 'Invalid email format'
     }
     
-    if (formData.website && !formData.website.startsWith('http')) {
+    if (formData.website && formData.website.trim() && !formData.website.startsWith('http')) {
       newErrors.website = 'Website must start with http:// or https://'
     }
 
@@ -97,8 +97,14 @@ const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    
+    console.log('📝 Form validation started with data:', formData)
+    
     if (validateForm()) {
+      console.log('✅ Form validation passed, submitting...')
       onSubmit(formData)
+    } else {
+      console.log('❌ Form validation failed:', errors)
     }
   }
 
@@ -252,6 +258,7 @@ const AffiliateModal = ({ isOpen, onClose, affiliate, onSubmit, loading }) => {
     </div>
   )
 }
+// AffiliatesPage.jsx - Part 2: FormAssignmentModal and Main Component Start
 
 // Form Assignment Modal Component  
 const FormAssignmentModal = ({ isOpen, onClose, affiliate, assignedForms, onSaveAssignments }) => {
@@ -359,7 +366,7 @@ const FormAssignmentModal = ({ isOpen, onClose, affiliate, assignedForms, onSave
   )
 }
 
-// Main AffiliatesPage Component
+// Main AffiliatesPage Component - START
 export default function AffiliatesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false)
@@ -398,9 +405,12 @@ export default function AffiliatesPage() {
     return matchesSearch && matchesStatus
   })
 
-  // Create affiliate mutation
+  // Create affiliate mutation - FIXED
   const createAffiliateMutation = useMutation(
-    (affiliateData) => affiliatesAPI.createAffiliate(affiliateData),
+    (affiliateData) => {
+      console.log('🚀 Sending affiliate data to API:', affiliateData)
+      return affiliatesAPI.createAffiliate(affiliateData)
+    },
     {
       onSuccess: () => {
         queryClient.invalidateQueries('affiliates')
@@ -412,17 +422,40 @@ export default function AffiliatesPage() {
         })
       },
       onError: (error) => {
+        console.error('❌ Create affiliate error:', error)
+        
+        // Extract detailed error message
+        let errorMessage = 'Failed to create affiliate'
+        if (error.response?.data?.error) {
+          errorMessage = error.response.data.error
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        } else if (error.response?.data) {
+          // Handle field-specific errors
+          const data = error.response.data
+          if (typeof data === 'object') {
+            const fieldErrors = Object.entries(data).map(([field, errors]) => {
+              const errorList = Array.isArray(errors) ? errors : [errors]
+              return `${field}: ${errorList.join(', ')}`
+            }).join('; ')
+            if (fieldErrors) errorMessage = fieldErrors
+          }
+        }
+        
         setNotification({
           type: 'error',
-          message: 'Failed to create affiliate. Please try again.'
+          message: errorMessage
         })
       }
     }
   )
 
-  // Update affiliate mutation
+  // Update affiliate mutation - FIXED
   const updateAffiliateMutation = useMutation(
-    ({ affiliateId, affiliateData }) => affiliatesAPI.updateAffiliate(affiliateId, affiliateData),
+    ({ affiliateId, affiliateData }) => {
+      console.log('🔄 Updating affiliate:', affiliateId, affiliateData)
+      return affiliatesAPI.updateAffiliate(affiliateId, affiliateData)
+    },
     {
       onSuccess: () => {
         queryClient.invalidateQueries('affiliates')
@@ -434,6 +467,7 @@ export default function AffiliatesPage() {
         })
       },
       onError: (error) => {
+        console.error('❌ Update affiliate error:', error)
         setNotification({
           type: 'error',
           message: 'Failed to update affiliate'
@@ -462,17 +496,43 @@ export default function AffiliatesPage() {
     }
   )
 
-  // Event handlers
-  const handleCreateAffiliate = (affiliateData) => {
-    if (editingAffiliate) {
-      updateAffiliateMutation.mutate({
-        affiliateId: editingAffiliate.id,
-        affiliateData
-      })
-    } else {
-      createAffiliateMutation.mutate(affiliateData)
+  // Event handlers - FIXED
+  const handleCreateAffiliate = async (affiliateData) => {
+    console.log('📝 handleCreateAffiliate called with:', affiliateData)
+    
+    try {
+      if (editingAffiliate) {
+        // Update existing affiliate
+        await updateAffiliateMutation.mutateAsync({
+          affiliateId: editingAffiliate.id,
+          affiliateData: {
+            affiliate_code: affiliateData.affiliate_code,
+            company_name: affiliateData.company_name,
+            website: affiliateData.website,
+            is_active: affiliateData.is_active,
+            // Include user fields for update
+            user_name: affiliateData.user_name,
+            email: affiliateData.email
+          }
+        })
+      } else {
+        // Create new affiliate
+        await createAffiliateMutation.mutateAsync({
+          user_name: affiliateData.user_name,
+          affiliate_code: affiliateData.affiliate_code,
+          company_name: affiliateData.company_name,
+          website: affiliateData.website,
+          email: affiliateData.email,
+          phone: affiliateData.phone,
+          is_active: affiliateData.is_active
+        })
+      }
+    } catch (error) {
+      console.error('❌ Affiliate operation failed:', error)
+      // Error handling is done in the mutation onError callbacks
     }
   }
+  // AffiliatesPage.jsx - Part 3: Rest of Main Component and JSX
 
   const handleEditAffiliate = (affiliate) => {
     setEditingAffiliate(affiliate)
